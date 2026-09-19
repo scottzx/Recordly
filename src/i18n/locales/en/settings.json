@@ -169,6 +169,7 @@
 		"crop": "Crop"
 	},
 	"captions": {
+		"engine": "Recognition Engine",
 		"selectOnTimeline": "Select a caption on the timeline to edit it.",
 		"enabled": "Show",
 		"timelineQuickAdd": "Hover to add on timeline",

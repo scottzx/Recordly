@@ -163,6 +163,7 @@
 		"crop": "Recadrage"
 	},
 	"captions": {
+		"engine": "Moteur de reconnaissance",
 		"selectOnTimeline": "Sélectionnez un sous-titre sur la timeline pour le modifier.",
 		"enabled": "Afficher",
 		"timelineQuickAdd": "Survoler pour ajouter sur la timeline",

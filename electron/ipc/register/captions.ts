@@ -1,6 +1,6 @@
 import path from "node:path";
 import { dialog, ipcMain } from "electron";
-import { generateAutoCaptionsFromVideo } from "../captions/generate";
+import { generateAutoCaptionsFromVideo, resolveTranscribeCliPath } from "../captions/generate";
 import {
 	deleteWhisperSmallModel,
 	downloadWhisperSmallModel,
@@ -221,26 +221,67 @@ export function registerCaptionHandlers() {
 		}
 	});
 
+	ipcMain.handle("get-transcribe-kit-status", async () => {
+		try {
+			const resolvedPath = await resolveTranscribeCliPath();
+			return {
+				success: true,
+				available: true,
+				path: resolvedPath,
+				engine: "SenseVoice (Metal GPU 加速)",
+			};
+		} catch (error) {
+			return {
+				success: false,
+				available: false,
+				path: null,
+				error: String(error),
+			};
+		}
+	});
+
+	ipcMain.handle("open-transcribe-cli-picker", async () => {
+		try {
+			const result = await dialog.showOpenDialog({
+				title: "选择 TranscribeKit (transcribe-cli) 可执行文件",
+				properties: ["openFile"],
+			});
+
+			if (result.canceled || result.filePaths.length === 0) {
+				return { success: false, canceled: true };
+			}
+
+			approveUserPath(result.filePaths[0]);
+			return { success: true, path: result.filePaths[0] };
+		} catch (error) {
+			console.error("Failed to open transcribe-cli picker:", error);
+			return { success: false, error: String(error) };
+		}
+	});
+
 	ipcMain.handle(
 		"generate-auto-captions",
 		async (
 			_,
 			options: {
 				videoPath: string;
-				whisperExecutablePath: string;
-				whisperModelPath: string;
+				engine?: "transcribe-kit" | "whisper";
+				transcribeCliPath?: string;
+				whisperExecutablePath?: string;
+				whisperModelPath?: string;
 				language?: string;
 			},
 		) => {
 			try {
 				const result = await generateAutoCaptionsFromVideo(options);
+				const engineLabel = result.engine === "transcribe-kit" ? "TranscribeKit (Metal 极速)" : "Whisper";
 				return {
 					success: true,
 					cues: result.cues,
 					message:
 						result.audioSourceLabel === "recording"
-							? `Generated ${result.cues.length} caption cues.`
-							: `Generated ${result.cues.length} caption cues from the ${result.audioSourceLabel}.`,
+							? `[${engineLabel}] 成功生成 ${result.cues.length} 条字幕。`
+							: `[${engineLabel}] 成功从 ${result.audioSourceLabel} 生成 ${result.cues.length} 条字幕。`,
 				};
 			} catch (error) {
 				console.error("Failed to generate auto captions:", error);

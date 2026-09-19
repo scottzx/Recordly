@@ -14,7 +14,12 @@
 	"private": true,
 	"version": "1.4.0",
 	"type": "module",
+	"bin": {
+		"recordly": "./cli/bin/recordly.mjs"
+	},
 	"scripts": {
+		"cli": "node ./cli/bin/recordly.mjs",
+		"mcp": "node ./cli/bin/recordly.mjs mcp",
 		"dev": "vite --config vite.config.ts",
 		"postinstall": "node scripts/postinstall.mjs",
 		"build": "npm run build:platform-native-helpers && tsc && vite build --config vite.config.ts && npm run normalize:electron-main-cjs && npm run smoke:electron-main-cjs && electron-builder",

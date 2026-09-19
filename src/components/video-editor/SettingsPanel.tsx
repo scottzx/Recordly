@@ -2303,16 +2303,50 @@ export function SettingsPanel({
 			</div>
 
 			<div className="rounded-lg bg-foreground/[0.03] px-2.5 py-2 space-y-3">
-				<div>
-					<Button
-						type="button"
-						variant="outline"
-						onClick={onPickWhisperModel}
-						className="h-10 w-full rounded-xl border-foreground/10 bg-foreground/5 px-4 text-sm text-foreground hover:bg-foreground/10 hover:text-foreground"
+				{/* Engine Selector */}
+				<div className="flex items-center justify-between gap-3">
+					<div className="text-sm font-medium text-foreground">
+						{tSettings("captions.engine", "识别引擎")}
+					</div>
+					<Select
+						value={autoCaptionSettings.engine || "transcribe-kit"}
+						onValueChange={(value: "transcribe-kit" | "whisper") =>
+							updateAutoCaptionSettings({ engine: value })
+						}
 					>
-						{tSettings("captions.selectModel", "Select Model")}
-					</Button>
+						<SelectTrigger className="h-10 w-[200px] rounded-xl border-foreground/10 bg-foreground/5 text-sm text-foreground hover:bg-foreground/10">
+							<SelectValue />
+						</SelectTrigger>
+						<SelectContent className="border-foreground/10 bg-editor-surface-alt text-foreground">
+							<SelectItem value="transcribe-kit">⚡ TranscribeKit (Metal)</SelectItem>
+							<SelectItem value="whisper">🤖 Whisper.cpp</SelectItem>
+						</SelectContent>
+					</Select>
 				</div>
+
+				{autoCaptionSettings.engine === "transcribe-kit" ? (
+					<div className="rounded-xl border border-blue-500/20 bg-blue-500/5 p-2.5 space-y-1">
+						<div className="flex items-center gap-1.5 text-xs font-medium text-blue-500">
+							<span>⚡</span>
+							<span>SenseVoice · Apple Silicon Metal 加速</span>
+						</div>
+						<div className="text-[11px] text-muted-foreground">
+							端侧离线运行，中英粤日韩精准断句，支持 10x~50x 实时极速转写。
+						</div>
+					</div>
+				) : (
+					<div>
+						<Button
+							type="button"
+							variant="outline"
+							onClick={onPickWhisperModel}
+							className="h-10 w-full rounded-xl border-foreground/10 bg-foreground/5 px-4 text-sm text-foreground hover:bg-foreground/10 hover:text-foreground"
+						>
+							{tSettings("captions.selectModel", "Select Model")}
+						</Button>
+					</div>
+				)}
+
 				<div className="flex items-center justify-between gap-3">
 					<div className="text-sm font-medium text-foreground">
 						{tSettings("captions.language", "Language")}
@@ -2333,35 +2367,40 @@ export function SettingsPanel({
 						</SelectContent>
 					</Select>
 				</div>
+
 				<div className="flex flex-wrap items-center gap-2">
-					<div className="grid w-full grid-cols-2 gap-2">
-						{whisperModelDownloadStatus === "downloading" ? (
-							<Button
-								type="button"
-								disabled
-								className="h-10 w-full rounded-xl bg-foreground/10 px-4 text-sm font-medium text-foreground hover:bg-foreground/10"
-							>
-								{tSettings("captions.downloading", "Downloading...")}{" "}
-								{Math.round(whisperModelDownloadProgress)}%
-							</Button>
-						) : whisperModelPath ? (
-							<Button
-								type="button"
-								variant="outline"
-								onClick={onDeleteWhisperSmallModel}
-								className="h-10 w-full rounded-xl border-foreground/10 bg-foreground/5 px-4 text-sm text-foreground hover:bg-foreground/10 hover:text-foreground"
-							>
-								{tSettings("captions.deleteModel", "Delete Model")}
-							</Button>
-						) : (
-							<Button
-								type="button"
-								onClick={onDownloadWhisperSmallModel}
-								className="h-10 w-full rounded-xl bg-[#2563EB] px-4 text-sm font-medium text-white hover:bg-[#2563EB]/90"
-							>
-								{tSettings("captions.downloadModel", "Download Model")}
-							</Button>
-						)}
+					<div
+						className={`grid w-full gap-2 ${autoCaptionSettings.engine === "whisper" ? "grid-cols-2" : "grid-cols-1"}`}
+					>
+						{autoCaptionSettings.engine === "whisper" ? (
+							whisperModelDownloadStatus === "downloading" ? (
+								<Button
+									type="button"
+									disabled
+									className="h-10 w-full rounded-xl bg-foreground/10 px-4 text-sm font-medium text-foreground hover:bg-foreground/10"
+								>
+									{tSettings("captions.downloading", "Downloading...")}{" "}
+									{Math.round(whisperModelDownloadProgress)}%
+								</Button>
+							) : whisperModelPath ? (
+								<Button
+									type="button"
+									variant="outline"
+									onClick={onDeleteWhisperSmallModel}
+									className="h-10 w-full rounded-xl border-foreground/10 bg-foreground/5 px-4 text-sm text-foreground hover:bg-foreground/10 hover:text-foreground"
+								>
+									{tSettings("captions.deleteModel", "Delete Model")}
+								</Button>
+							) : (
+								<Button
+									type="button"
+									onClick={onDownloadWhisperSmallModel}
+									className="h-10 w-full rounded-xl bg-[#2563EB] px-4 text-sm font-medium text-white hover:bg-[#2563EB]/90"
+								>
+									{tSettings("captions.downloadModel", "Download Model")}
+								</Button>
+							)
+						) : null}
 						<Button
 							type="button"
 							variant="outline"
@@ -2373,26 +2412,34 @@ export function SettingsPanel({
 						</Button>
 					</div>
 				</div>
+
 				<div className="flex flex-col gap-2">
 					<Button
 						type="button"
 						onClick={onGenerateAutoCaptions}
-						disabled={isGeneratingCaptions || !whisperModelPath}
+						disabled={
+							isGeneratingCaptions ||
+							(autoCaptionSettings.engine === "whisper" && !whisperModelPath)
+						}
 						className="h-10 w-full rounded-xl bg-[#2563EB] px-4 text-sm font-medium text-white hover:bg-[#2563EB]/90 disabled:opacity-60"
 					>
 						{isGeneratingCaptions
 							? tSettings("captions.generating", "Generating...")
 							: captionCueCount > 0
 								? tSettings("captions.regenerateFull", "Regenerate Captions")
-								: tSettings("captions.generateFull", "Generate Captions")}
+								: autoCaptionSettings.engine === "transcribe-kit"
+									? "⚡ 极速生成字幕"
+									: tSettings("captions.generateFull", "Generate Captions")}
 					</Button>
 					{isGeneratingCaptions ? (
 						<div className="space-y-1">
 							<div className="text-xs text-muted-foreground">
-								{tSettings(
-									"captions.generatingStatus",
-									"Generating captions. This can take a moment.",
-								)}
+								{autoCaptionSettings.engine === "transcribe-kit"
+									? "TranscribeKit (Metal) 正在转写，约数秒内完成..."
+									: tSettings(
+											"captions.generatingStatus",
+											"Generating captions. This can take a moment.",
+										)}
 							</div>
 							<div className="indeterminate-progress h-2 rounded-full bg-foreground/5" />
 						</div>

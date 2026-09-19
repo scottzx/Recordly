@@ -742,10 +742,18 @@ contextBridge.exposeInMainWorld("electronAPI", {
 		ipcRenderer.on("whisper-small-model-download-progress", listener);
 		return () => ipcRenderer.removeListener("whisper-small-model-download-progress", listener);
 	},
+	getTranscribeKitStatus: () => {
+		return ipcRenderer.invoke("get-transcribe-kit-status");
+	},
+	openTranscribeCliPicker: () => {
+		return ipcRenderer.invoke("open-transcribe-cli-picker");
+	},
 	generateAutoCaptions: (options: {
 		videoPath: string;
+		engine?: "transcribe-kit" | "whisper";
+		transcribeCliPath?: string;
 		whisperExecutablePath?: string;
-		whisperModelPath: string;
+		whisperModelPath?: string;
 		language?: string;
 	}) => {
 		return ipcRenderer.invoke("generate-auto-captions", options);

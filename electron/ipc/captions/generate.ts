@@ -19,6 +19,7 @@ import {
 	SILENCE_NOISE_DB,
 	type SilenceInterval,
 } from "./silence";
+import type { CaptionCuePayload, CaptionWordPayload } from "../types";
 
 const execFileAsync = promisify(execFile);
 
@@ -210,10 +211,199 @@ export async function detectSilenceIntervals(options: {
 	return parseSilenceIntervals(stderr ?? "");
 }
 
+export async function resolveTranscribeCliPath(preferredPath?: string | null) {
+	const candidatePaths = [
+		preferredPath?.trim() || null,
+		process.env["TRANSCRIBE_CLI_PATH"]?.trim() || null,
+		path.join(process.env["HOME"] || "", ".local/bin/transcribe-cli"),
+		"/opt/homebrew/bin/transcribe-cli",
+		"/usr/local/bin/transcribe-cli",
+		"/opt/homebrew/bin/transcribe",
+		"/opt/homebrew/bin/1transcribe",
+		"/Users/scott/Documents/01-开发项目/mac_app/TranscribeKit/.build/release/transcribe-cli",
+		"/Users/scott/Documents/01-开发项目/mac_app/TranscribeKit/.build/debug/transcribe-cli",
+	].filter((value): value is string => Boolean(value));
+
+	for (const candidate of candidatePaths) {
+		const normalized = path.resolve(candidate);
+		if (await isExecutableFile(normalized)) {
+			return normalized;
+		}
+	}
+
+	const pathCommand = process.platform === "win32" ? "where" : "which";
+	for (const binaryName of ["transcribe-cli", "transcribe", "1transcribe"]) {
+		const result = spawnSync(pathCommand, [binaryName], { encoding: "utf-8" });
+		if (result.status === 0) {
+			const resolvedPath = result.stdout
+				.split(/\r?\n/)
+				.map((line) => line.trim())
+				.find(Boolean);
+
+			if (resolvedPath && (await isExecutableFile(resolvedPath))) {
+				return resolvedPath;
+			}
+		}
+	}
+
+	throw new Error(
+		"TranscribeKit CLI (transcribe-cli) was not found. Please ensure it is installed in ~/.local/bin/ or build it with SwiftPM.",
+	);
+}
+
+export async function executeTranscribeKit(
+	transcribeCliPath: string,
+	audioPath: string,
+	outputDir: string,
+	language?: string,
+) {
+	let lang = "zh";
+	if (language && language.trim() && language.trim() !== "auto") {
+		lang = language.trim();
+	}
+
+	const args = [audioPath, "-o", outputDir, "-f", "srt", "-l", lang];
+
+	await execFileAsync(transcribeCliPath, args, {
+		timeout: 30 * 60 * 1000,
+		maxBuffer: 20 * 1024 * 1024,
+	});
+}
+
+export function tokenizeCueText(text: string): string[] {
+	const tokens: string[] = [];
+	const regex =
+		/[\u4e00-\u9fa5]|[\u3040-\u30ff]|[\uac00-\ud7af]|[a-zA-Z0-9_]+|[^\s\w\u4e00-\u9fa5\u3040-\u30ff\uac00-\ud7af]+/gu;
+	let match = regex.exec(text);
+	while (match !== null) {
+		const token = match[0].trim();
+		if (token) {
+			tokens.push(token);
+		}
+		match = regex.exec(text);
+	}
+	return tokens.length > 0 ? tokens : [text.trim()];
+}
+
+export function synthesizeWordsForCue(
+	text: string,
+	startMs: number,
+	endMs: number,
+): CaptionWordPayload[] {
+	const tokens = tokenizeCueText(text);
+	const totalSpan = Math.max(tokens.length * 50, endMs - startMs);
+	const totalChars = tokens.reduce((acc, token) => acc + token.length, 0) || 1;
+
+	let cursorMs = startMs;
+	return tokens.map((token, index) => {
+		const isLast = index === tokens.length - 1;
+		const tokenDuration = isLast
+			? endMs - cursorMs
+			: Math.max(30, Math.round((totalSpan * token.length) / totalChars));
+		const wStart = cursorMs;
+		const wEnd = isLast ? endMs : Math.min(endMs, cursorMs + tokenDuration);
+		cursorMs = wEnd;
+		return {
+			text: token,
+			startMs: wStart,
+			endMs: Math.max(wStart + 1, wEnd),
+			leadingSpace: index > 0 && /^[a-zA-Z0-9]/.test(token),
+		};
+	});
+}
+
+export function splitCueClauses(
+	cue: CaptionCuePayload,
+	maxCharsPerCue = 18,
+): CaptionCuePayload[] {
+	const text = cue.text.trim();
+	if (!text) {
+		return [];
+	}
+
+	const primaryRegex = /[^。！？!?…\n]+[。！？!?…\n]*/g;
+	const primary: string[] = [];
+	let match = primaryRegex.exec(text);
+	while (match !== null) {
+		const sentence = match[0].trim();
+		if (sentence) {
+			primary.push(sentence);
+		}
+		match = primaryRegex.exec(text);
+	}
+	if (primary.length === 0) {
+		primary.push(text);
+	}
+
+	const fragments: string[] = [];
+	const subRegex = /[^，,；;]+[，,；;]*/g;
+	for (const sent of primary) {
+		if (sent.length > maxCharsPerCue && /[，,；;]/.test(sent)) {
+			const sub: string[] = [];
+			let subMatch = subRegex.exec(sent);
+			while (subMatch !== null) {
+				const chunk = subMatch[0].trim();
+				if (chunk) {
+					sub.push(chunk);
+				}
+				subMatch = subRegex.exec(sent);
+			}
+			if (sub.length > 1) {
+				fragments.push(...sub);
+				continue;
+			}
+		}
+		fragments.push(sent);
+	}
+
+	if (fragments.length <= 1) {
+		return [
+			{
+				...cue,
+				words:
+					cue.words && cue.words.length > 0
+						? cue.words
+						: synthesizeWordsForCue(cue.text, cue.startMs, cue.endMs),
+			},
+		];
+	}
+
+	const totalSpan = Math.max(1, cue.endMs - cue.startMs);
+	const totalChars = fragments.reduce((acc, frag) => acc + frag.length, 0) || 1;
+	let cursorMs = cue.startMs;
+
+	return fragments.map((frag, idx) => {
+		const isLast = idx === fragments.length - 1;
+		const duration = isLast
+			? cue.endMs - cursorMs
+			: Math.max(200, Math.round((totalSpan * frag.length) / totalChars));
+		const sStart = cursorMs;
+		const sEnd = isLast ? cue.endMs : Math.min(cue.endMs, cursorMs + duration);
+		cursorMs = Math.max(sStart + 1, sEnd);
+		return {
+			id: `${cue.id}-${idx + 1}`,
+			startMs: sStart,
+			endMs: Math.max(sStart + 1, sEnd),
+			text: frag,
+			words: synthesizeWordsForCue(frag, sStart, Math.max(sStart + 1, sEnd)),
+		};
+	});
+}
+
+export function processTranscribeKitCues(cues: CaptionCuePayload[]): CaptionCuePayload[] {
+	const expanded = cues.flatMap((cue) => splitCueClauses(cue));
+	return expanded.map((cue, idx) => ({
+		...cue,
+		id: `caption-${idx + 1}`,
+	}));
+}
+
 export async function generateAutoCaptionsFromVideo(options: {
 	videoPath: string;
+	engine?: "transcribe-kit" | "whisper";
+	transcribeCliPath?: string;
 	whisperExecutablePath?: string;
-	whisperModelPath: string;
+	whisperModelPath?: string;
 	language?: string;
 }) {
 	const ffmpegPath = getFfmpegBinaryPath();
@@ -222,17 +412,14 @@ export async function generateAutoCaptionsFromVideo(options: {
 		throw new Error("Missing source video path.");
 	}
 
-	const whisperExecutablePath = await resolveWhisperExecutablePath(options.whisperExecutablePath);
-	const whisperModelPath = path.resolve(options.whisperModelPath);
-	await ensureReadableFile(whisperExecutablePath, { executable: true });
-	await ensureReadableFile(whisperModelPath);
+	const engine = options.engine ?? (options.whisperModelPath ? "whisper" : "transcribe-kit");
 
 	const tempBase = path.join(
 		app.getPath("temp"),
 		`recordly-captions-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
 	);
 	const wavPath = `${tempBase}.wav`;
-	const outputBase = `${tempBase}-whisper`;
+	const outputBase = `${tempBase}-captions`;
 	const srtPath = `${outputBase}.srt`;
 	const jsonPath = `${outputBase}.json`;
 
@@ -245,73 +432,107 @@ export async function generateAutoCaptionsFromVideo(options: {
 
 		const language =
 			options.language && options.language.trim() ? options.language.trim() : "auto";
-		const whisperBaseArgs = [
-			"-m",
-			whisperModelPath,
-			"-f",
-			wavPath,
-			"-osrt",
-			"-of",
-			outputBase,
-			"-l",
-			language,
-			"-np",
-		];
 
-		let jsonEnabled = true;
-		try {
-			await executeWhisper(whisperExecutablePath, [...whisperBaseArgs, "-ojf"]);
-		} catch (error) {
-			if (!shouldRetryWhisperWithoutJson(error)) {
-				throw error;
+		let cues: CaptionCuePayload[] = [];
+
+		if (engine === "transcribe-kit") {
+			const transcribeCliPath = await resolveTranscribeCliPath(options.transcribeCliPath);
+			await ensureReadableFile(transcribeCliPath, { executable: true });
+
+			const tempDir = path.dirname(wavPath);
+			await executeTranscribeKit(transcribeCliPath, wavPath, tempDir, language);
+
+			const baseName = path.basename(wavPath, path.extname(wavPath));
+			const generatedSrtPath = path.join(tempDir, `${baseName}.srt`);
+
+			const srtContent = await fs.readFile(generatedSrtPath, "utf-8");
+			cues = parseSrtCues(srtContent);
+			await fs.rm(generatedSrtPath, { force: true }).catch(() => {
+				// Ignore cleanup error for temporary srt file
+			});
+		} else {
+			if (!options.whisperModelPath) {
+				throw new Error("Missing Whisper model path.");
+			}
+			const whisperExecutablePath = await resolveWhisperExecutablePath(
+				options.whisperExecutablePath,
+			);
+			const whisperModelPath = path.resolve(options.whisperModelPath);
+			await ensureReadableFile(whisperExecutablePath, { executable: true });
+			await ensureReadableFile(whisperModelPath);
+
+			const whisperBaseArgs = [
+				"-m",
+				whisperModelPath,
+				"-f",
+				wavPath,
+				"-osrt",
+				"-of",
+				outputBase,
+				"-l",
+				language,
+				"-np",
+			];
+
+			let jsonEnabled = true;
+			try {
+				await executeWhisper(whisperExecutablePath, [...whisperBaseArgs, "-ojf"]);
+			} catch (error) {
+				if (!shouldRetryWhisperWithoutJson(error)) {
+					throw error;
+				}
+
+				jsonEnabled = false;
+				console.warn(
+					"[auto-captions] Whisper runtime does not support JSON full output, retrying with SRT only:",
+					error,
+				);
+				await executeWhisper(whisperExecutablePath, whisperBaseArgs);
 			}
 
-			jsonEnabled = false;
-			console.warn(
-				"[auto-captions] Whisper runtime does not support JSON full output, retrying with SRT only:",
-				error,
-			);
-			await executeWhisper(whisperExecutablePath, whisperBaseArgs);
+			const timedCues = jsonEnabled
+				? parseWhisperJsonCues(await fs.readFile(jsonPath, "utf-8"))
+				: [];
+			if (jsonEnabled && timedCues.length === 0) {
+				console.warn(
+					"[auto-captions] Whisper JSON produced no word-timed cues; falling back to SRT (no word timings).",
+				);
+			}
+			cues =
+				timedCues.length > 0
+					? timedCues
+					: parseSrtCues(await fs.readFile(srtPath, "utf-8"));
 		}
 
-		const timedCues = jsonEnabled
-			? parseWhisperJsonCues(await fs.readFile(jsonPath, "utf-8"))
-			: [];
-		if (jsonEnabled && timedCues.length === 0) {
-			// JSON ran but yielded no word-timed cues (empty/malformed output). We fall back
-			// to SRT, which has no word timings — captions are then split by sentence text and
-			// silence rather than precise word timing. Surface it for diagnosis.
-			console.warn(
-				"[auto-captions] Whisper JSON produced no word-timed cues; falling back to SRT (no word timings).",
-			);
-		}
-		const cues =
-			timedCues.length > 0 ? timedCues : parseSrtCues(await fs.readFile(srtPath, "utf-8"));
 		if (cues.length === 0) {
-			throw new Error("Whisper completed, but no caption cues were produced.");
+			throw new Error("Speech recognition completed, but no caption cues were produced.");
 		}
 
-		// Whisper cues run sentences together and don't break on pauses. Re-segment them
-		// into one caption per sentence/phrase using Whisper's own word stream (punctuation
-		// + pauses), backed by ground-truth acoustic silence (ffmpeg `silencedetect`).
-		// Failure here must not block caption generation — fall back to raw.
 		let cuesToReturn = cues;
-		try {
-			const silences = await detectSilenceIntervals({ ffmpegPath, wavPath });
-			// An empty result is a valid resegmentation (e.g. every transcribed word fell
-			// inside a long detected silence and was dropped as a hallucination), so take it
-			// as-is. Only a thrown exception should fall back to the raw cues.
-			cuesToReturn = segmentCuesIntoPhrases(cues, silences);
-		} catch (error) {
-			console.warn(
-				"[auto-captions] Silence-aware re-segmentation failed, using raw cues:",
-				error,
-			);
+		if (engine === "transcribe-kit") {
+			cuesToReturn = processTranscribeKitCues(cues);
+		} else {
+			try {
+				const silences = await detectSilenceIntervals({ ffmpegPath, wavPath });
+				cuesToReturn = segmentCuesIntoPhrases(cues, silences).map((cue) => ({
+					...cue,
+					words:
+						cue.words && cue.words.length > 0
+							? cue.words
+							: synthesizeWordsForCue(cue.text, cue.startMs, cue.endMs),
+				}));
+			} catch (error) {
+				console.warn(
+					"[auto-captions] Silence-aware re-segmentation failed, using raw cues:",
+					error,
+				);
+			}
 		}
 
 		return {
 			cues: cuesToReturn,
 			audioSourceLabel: audioSource.label,
+			engine,
 		};
 	} finally {
 		await Promise.allSettled([

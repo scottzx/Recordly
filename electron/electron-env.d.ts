@@ -714,10 +714,25 @@ interface Window {
 				error?: string;
 			}) => void,
 		) => () => void;
+		getTranscribeKitStatus: () => Promise<{
+			success: boolean;
+			available: boolean;
+			path: string | null;
+			engine?: string;
+			error?: string;
+		}>;
+		openTranscribeCliPicker: () => Promise<{
+			success: boolean;
+			path?: string;
+			canceled?: boolean;
+			error?: string;
+		}>;
 		generateAutoCaptions: (options: {
 			videoPath: string;
+			engine?: "transcribe-kit" | "whisper";
+			transcribeCliPath?: string;
 			whisperExecutablePath?: string;
-			whisperModelPath: string;
+			whisperModelPath?: string;
 			language?: string;
 		}) => Promise<{
 			success: boolean;

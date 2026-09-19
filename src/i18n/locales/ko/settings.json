@@ -163,6 +163,7 @@
 		"crop": "자르기"
 	},
 	"captions": {
+		"engine": "인식 엔진",
 		"selectOnTimeline": "타임라인에서 자막을 선택하여 편집하세요.",
 		"enabled": "표시",
 		"timelineQuickAdd": "타임라인에 마우스를 올려 추가",

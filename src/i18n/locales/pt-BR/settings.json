@@ -163,6 +163,7 @@
 		"crop": "Corte"
 	},
 	"captions": {
+		"engine": "Mecanismo de reconhecimento",
 		"selectOnTimeline": "Selecione uma legenda na linha do tempo para editá-la.",
 		"enabled": "Mostrar",
 		"timelineQuickAdd": "Passe o cursor para adicionar na linha do tempo",

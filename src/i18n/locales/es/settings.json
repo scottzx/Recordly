@@ -163,6 +163,7 @@
 		"crop": "Recorte"
 	},
 	"captions": {
+		"engine": "Motor de reconocimiento",
 		"selectOnTimeline": "Selecciona un subtítulo en la línea de tiempo para editarlo.",
 		"enabled": "Mostrar",
 		"timelineQuickAdd": "Pasar el cursor para añadir en la línea de tiempo",

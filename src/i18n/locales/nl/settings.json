@@ -163,6 +163,7 @@
 		"crop": "Bijsnijden"
 	},
 	"captions": {
+		"engine": "Herkenningsengine",
 		"selectOnTimeline": "Selecteer een ondertitel op de tijdlijn om deze te bewerken.",
 		"enabled": "Tonen",
 		"timelineQuickAdd": "Aanwijzen om toe te voegen op tijdlijn",

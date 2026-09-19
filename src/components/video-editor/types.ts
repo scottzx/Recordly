@@ -578,10 +578,13 @@ export interface CaptionCueWord {
 
 export type AutoCaptionAnimation = "none" | "fade" | "rise" | "pop";
 
+export type CaptionEngine = "transcribe-kit" | "whisper";
+
 export interface AutoCaptionSettings {
 	enabled: boolean;
 	/** Show the hover ghost on the timeline caption track for click-to-add. */
 	timelineQuickAdd: boolean;
+	engine: CaptionEngine;
 	language: string;
 	fontFamily: string;
 	fontSize: number;
@@ -598,6 +601,7 @@ export interface AutoCaptionSettings {
 export const DEFAULT_AUTO_CAPTION_SETTINGS: AutoCaptionSettings = {
 	enabled: false,
 	timelineQuickAdd: true,
+	engine: "transcribe-kit",
 	language: "auto",
 	fontFamily: getDefaultCaptionFontFamily(),
 	fontSize: 30,

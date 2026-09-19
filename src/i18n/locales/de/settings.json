@@ -163,6 +163,7 @@
 		"crop": "Zuschneiden"
 	},
 	"captions": {
+		"engine": "Erkennungs-Engine",
 		"selectOnTimeline": "Wählen Sie einen Untertitel auf der Zeitleiste aus, um ihn zu bearbeiten.",
 		"enabled": "Anzeigen",
 		"timelineQuickAdd": "Mit der Maus darüberfahren, um zur Zeitleiste hinzuzufügen",
