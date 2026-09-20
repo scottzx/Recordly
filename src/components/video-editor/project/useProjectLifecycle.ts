@@ -5,6 +5,7 @@ import {
 	type RefObject,
 	type SetStateAction,
 	useCallback,
+	useEffect,
 	useMemo,
 	useRef,
 } from "react";
@@ -225,6 +226,15 @@ export function useProjectLifecycle(input: Input) {
 		await current.refreshProjectLibrary();
 		return true;
 	}, []);
+
+	useEffect(() => {
+		if (!window.electronAPI.onProjectFileChanged) return;
+		return window.electronAPI.onProjectFileChanged(async ({ path }) => {
+			const result = await window.electronAPI.openProjectFileAtPath(path);
+			if (!result.success || !result.project) return;
+			await applyLoadedProject(result.project, result.path ?? path);
+		});
+	}, [applyLoadedProject]);
 
 	const currentProjectSnapshot = useMemo(
 		() =>

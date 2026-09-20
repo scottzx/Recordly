@@ -8,7 +8,7 @@ export interface VideoDevice {
 
 let hasRequestedVideoLabels = false;
 
-export function useVideoDevices(enabled: boolean = true) {
+export function useVideoDevices(enabled: boolean = true, requestPermission: boolean = false) {
 	const [devices, setDevices] = useState<VideoDevice[]>([]);
 	const [selectedDeviceId, setSelectedDeviceId] = useState<string>("default");
 	const [isLoading, setIsLoading] = useState(false);
@@ -44,7 +44,7 @@ export function useVideoDevices(enabled: boolean = true) {
 				const needsLabelPermission =
 					videoInputs.length > 0 && videoInputs.every((device) => !device.label.trim());
 
-				if (needsLabelPermission && !hasRequestedVideoLabels) {
+				if (needsLabelPermission && requestPermission && !hasRequestedVideoLabels) {
 					permissionStream = await navigator.mediaDevices.getUserMedia({
 						video: true,
 						audio: false,
@@ -106,7 +106,7 @@ export function useVideoDevices(enabled: boolean = true) {
 			mounted = false;
 			navigator.mediaDevices.removeEventListener("devicechange", handleDeviceChange);
 		};
-	}, [enabled]);
+	}, [enabled, requestPermission]);
 
 	return {
 		devices,

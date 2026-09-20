@@ -198,7 +198,10 @@
 			"split": "Split",
 			"merge": "Merge",
 			"delete": "Delete"
-		}
+		},
+		"keepTimestampedClips": "只保留有字幕的片段",
+		"keepTimestampedClipsMissing": "请先生成字幕，再按时间戳分割并裁切 CLIP。",
+		"keepTimestampedClipsDone": "已保留 {{count}} 段有字幕的 CLIP"
 	},
 	"crop": {
 		"title": "裁剪视频",

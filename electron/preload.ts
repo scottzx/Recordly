@@ -846,6 +846,12 @@ contextBridge.exposeInMainWorld("electronAPI", {
 	openProjectFileAtPath: (filePath: string) => {
 		return ipcRenderer.invoke("open-project-file-at-path", filePath);
 	},
+	onProjectFileChanged: (callback: (payload: { path: string }) => void) => {
+		const listener = (_event: Electron.IpcRendererEvent, payload: { path: string }) =>
+			callback(payload);
+		ipcRenderer.on("project-file-changed", listener);
+		return () => ipcRenderer.removeListener("project-file-changed", listener);
+	},
 	openProjectsDirectory: () => {
 		return ipcRenderer.invoke("open-projects-directory");
 	},

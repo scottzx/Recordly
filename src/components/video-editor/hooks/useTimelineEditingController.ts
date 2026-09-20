@@ -185,6 +185,7 @@ export function useTimelineEditingController(input: Input) {
 		setSelectedCaptionId: timeline.setSelectedCaptionId,
 		setActiveEffectSection: input.setActiveEffectSection,
 		nextClipIdRef: input.nextClipIdRef,
+		autoCaptions: timeline.autoCaptions,
 		t: input.t,
 	});
 	const audioCommands = useAudioRegionCommands({

@@ -91,5 +91,15 @@
 		"updateNow": "Actualizar ahora",
 		"restartToUpdate": "Reiniciar para actualizar",
 		"tryAgain": "Intentar de nuevo"
+	},
+	"home": {
+		"title": "Projects",
+		"subtitle": "Open a recent project or start a new recording",
+		"newRecording": "New recording",
+		"openFile": "Open file",
+		"empty": "No saved projects yet",
+		"emptyHint": "Start a new recording to create one",
+		"noPreview": "No preview",
+		"backToProjects": "Projects"
 	}
 }

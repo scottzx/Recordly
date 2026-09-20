@@ -639,6 +639,7 @@ interface SettingsPanelProps {
 	onPickWhisperModel?: () => void;
 	onGenerateAutoCaptions?: () => void;
 	onClearAutoCaptions?: () => void;
+	onKeepTimestampedClips?: () => void;
 	onDownloadWhisperSmallModel?: () => void;
 	onDeleteWhisperSmallModel?: () => void;
 	captionCurrentTimeMs?: number;
@@ -1085,6 +1086,7 @@ export function SettingsPanel({
 	onPickWhisperModel,
 	onGenerateAutoCaptions,
 	onClearAutoCaptions,
+	onKeepTimestampedClips,
 	onDownloadWhisperSmallModel,
 	onDeleteWhisperSmallModel,
 	captionCurrentTimeMs = 0,
@@ -2409,6 +2411,15 @@ export function SettingsPanel({
 							className="h-10 w-full rounded-xl border-foreground/10 bg-foreground/5 px-4 text-sm text-foreground hover:bg-foreground/10 hover:text-foreground disabled:opacity-50"
 						>
 							{tSettings("captions.clearFull", "Clear Captions")}
+						</Button>
+						<Button
+							type="button"
+							variant="outline"
+							onClick={onKeepTimestampedClips}
+							disabled={captionCueCount === 0}
+							className="h-10 w-full rounded-xl border-foreground/10 bg-foreground/5 px-4 text-sm text-foreground hover:bg-foreground/10 hover:text-foreground disabled:opacity-50"
+						>
+							{tSettings("captions.keepTimestampedClips", "Keep captioned clips")}
 						</Button>
 					</div>
 				</div>

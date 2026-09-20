@@ -91,5 +91,15 @@
 		"updateNow": "立即更新",
 		"restartToUpdate": "重新启动以更新",
 		"tryAgain": "重试"
+	},
+	"home": {
+		"title": "项目",
+		"subtitle": "加载历史项目，或开始新的录制",
+		"newRecording": "新录制",
+		"openFile": "打开文件",
+		"empty": "还没有保存的项目",
+		"emptyHint": "开始一次新录制来创建项目",
+		"noPreview": "暂无预览",
+		"backToProjects": "项目"
 	}
 }

@@ -2,6 +2,7 @@ import { randomUUID } from "node:crypto";
 import { constants as fsConstants } from "node:fs";
 import fs from "node:fs/promises";
 import path from "node:path";
+import { noteSelfProjectWrite } from "./projectFileHash";
 
 const pendingWrites = new Map<string, Promise<void>>();
 
@@ -129,6 +130,7 @@ export async function writeProjectFileAtomically(
 	projectPath: string,
 	contents: string,
 ): Promise<void> {
+	noteSelfProjectWrite(projectPath, contents);
 	const queueKey = getQueueKey(projectPath);
 	const previousWrite = pendingWrites.get(queueKey) ?? Promise.resolve();
 	const currentWrite = previousWrite

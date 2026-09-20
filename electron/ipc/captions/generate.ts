@@ -4,10 +4,11 @@ import fs from "node:fs/promises";
 import path from "node:path";
 import { promisify } from "node:util";
 import { app } from "electron";
-import { getFfmpegBinaryPath } from "../ffmpeg/binary";
+import { getFfmpegBinaryPath, getFfprobeBinaryPath } from "../ffmpeg/binary";
 import { getBundledWhisperExecutableCandidates } from "../paths/binaries";
 import { resolveRecordingSession } from "../project/session";
 import { getUsableCompanionAudioCandidates } from "../recording/diagnostics";
+import type { CaptionCuePayload, CaptionWordPayload } from "../types";
 import { normalizeVideoSourcePath } from "../utils";
 import { getCaptionCompanionAudioCandidates } from "./audioCandidates";
 import { parseSrtCues, parseWhisperJsonCues, shouldRetryWhisperWithoutJson } from "./parser";
@@ -19,7 +20,6 @@ import {
 	SILENCE_NOISE_DB,
 	type SilenceInterval,
 } from "./silence";
-import type { CaptionCuePayload, CaptionWordPayload } from "../types";
 
 const execFileAsync = promisify(execFile);
 
@@ -129,6 +129,28 @@ export async function resolveCaptionAudioCandidates(videoPath: string) {
 	return candidates;
 }
 
+export const CAPTION_AUDIO_FILTER = "highpass=f=80,loudnorm=I=-16:LRA=11:TP=-1.5";
+
+export function buildCaptionExtractArgs(inputPath: string, wavPath: string): string[] {
+	return [
+		"-y",
+		"-i",
+		inputPath,
+		"-map",
+		"0:a:0",
+		"-vn",
+		"-ac",
+		"1",
+		"-ar",
+		"16000",
+		"-af",
+		CAPTION_AUDIO_FILTER,
+		"-c:a",
+		"pcm_s16le",
+		wavPath,
+	];
+}
+
 export async function extractCaptionAudioSource(options: {
 	videoPath: string;
 	ffmpegPath: string;
@@ -148,21 +170,7 @@ export async function extractCaptionAudioSource(options: {
 			await ensureReadableFile(candidate.path);
 			await execFileAsync(
 				options.ffmpegPath,
-				[
-					"-y",
-					"-i",
-					candidate.path,
-					"-map",
-					"0:a:0",
-					"-vn",
-					"-ac",
-					"1",
-					"-ar",
-					"16000",
-					"-c:a",
-					"pcm_s16le",
-					options.wavPath,
-				],
+				buildCaptionExtractArgs(candidate.path, options.wavPath),
 				{ timeout: 5 * 60 * 1000, maxBuffer: 20 * 1024 * 1024 },
 			);
 			attemptedCandidates.push({ ...candidate, readable: true, extractedAudio: true });
@@ -270,6 +278,128 @@ export async function executeTranscribeKit(
 	});
 }
 
+export const TRANSCRIBE_KIT_CHUNK_MS = 25_000;
+
+export function offsetCaptionCues(
+	cues: CaptionCuePayload[],
+	offsetMs: number,
+): CaptionCuePayload[] {
+	if (offsetMs === 0) {
+		return cues;
+	}
+
+	return cues.map((cue) => ({
+		...cue,
+		startMs: cue.startMs + offsetMs,
+		endMs: cue.endMs + offsetMs,
+		words: cue.words?.map((word) => ({
+			...word,
+			startMs: word.startMs + offsetMs,
+			endMs: word.endMs + offsetMs,
+		})),
+	}));
+}
+
+async function getWavDurationMs(ffprobePath: string, wavPath: string): Promise<number> {
+	const { stdout } = await execFileAsync(
+		ffprobePath,
+		[
+			"-v",
+			"error",
+			"-show_entries",
+			"format=duration",
+			"-of",
+			"default=noprint_wrappers=1:nokey=1",
+			wavPath,
+		],
+		{ timeout: 30_000 },
+	);
+	const seconds = Number.parseFloat(stdout.trim());
+	if (!Number.isFinite(seconds) || seconds <= 0) {
+		throw new Error("Could not determine caption audio duration.");
+	}
+	return Math.round(seconds * 1000);
+}
+
+export async function transcribeKitWavToCues(options: {
+	transcribeCliPath: string;
+	wavPath: string;
+	outputDir: string;
+	language?: string;
+	ffmpegPath: string;
+	ffprobePath: string;
+}): Promise<CaptionCuePayload[]> {
+	const durationMs = await getWavDurationMs(options.ffprobePath, options.wavPath);
+	const shouldChunk = durationMs > TRANSCRIBE_KIT_CHUNK_MS + 2000;
+	const chunkStarts = shouldChunk
+		? Array.from(
+				{ length: Math.ceil(durationMs / TRANSCRIBE_KIT_CHUNK_MS) },
+				(_, index) => index * TRANSCRIBE_KIT_CHUNK_MS,
+			)
+		: [0];
+
+	const cues: CaptionCuePayload[] = [];
+	for (const startMs of chunkStarts) {
+		const remainingMs = durationMs - startMs;
+		const chunkDurationMs = shouldChunk
+			? Math.min(TRANSCRIBE_KIT_CHUNK_MS, remainingMs)
+			: durationMs;
+		let inputPath = options.wavPath;
+		let chunkDir = options.outputDir;
+		let chunkWav: string | null = null;
+
+		if (shouldChunk) {
+			chunkWav = path.join(options.outputDir, `chunk-${startMs}.wav`);
+			chunkDir = path.join(options.outputDir, `chunk-${startMs}`);
+			await fs.mkdir(chunkDir, { recursive: true });
+			await execFileAsync(
+				options.ffmpegPath,
+				[
+					"-y",
+					"-ss",
+					String(startMs / 1000),
+					"-t",
+					String(chunkDurationMs / 1000),
+					"-i",
+					options.wavPath,
+					"-c",
+					"copy",
+					chunkWav,
+				],
+				{ timeout: 60_000 },
+			);
+			inputPath = chunkWav;
+		}
+
+		const generatedSrtPath = path.join(
+			chunkDir,
+			`${path.basename(inputPath, path.extname(inputPath))}.srt`,
+		);
+		try {
+			await executeTranscribeKit(
+				options.transcribeCliPath,
+				inputPath,
+				chunkDir,
+				options.language,
+			);
+			const parsed = parseSrtCues(await fs.readFile(generatedSrtPath, "utf-8"));
+			cues.push(...offsetCaptionCues(parsed, startMs));
+		} catch (error) {
+			const message = error instanceof Error ? error.message : String(error);
+			if (!/未在音频中检测到人声音段|no speech|no caption/i.test(message)) {
+				throw error;
+			}
+		} finally {
+			await Promise.allSettled([
+				fs.rm(generatedSrtPath, { force: true }),
+				chunkWav ? fs.rm(chunkWav, { force: true }) : Promise.resolve(),
+			]);
+		}
+	}
+
+	return cues;
+}
+
 export function tokenizeCueText(text: string): string[] {
 	const tokens: string[] = [];
 	const regex =
@@ -312,10 +442,7 @@ export function synthesizeWordsForCue(
 	});
 }
 
-export function splitCueClauses(
-	cue: CaptionCuePayload,
-	maxCharsPerCue = 18,
-): CaptionCuePayload[] {
+export function splitCueClauses(cue: CaptionCuePayload, maxCharsPerCue = 18): CaptionCuePayload[] {
 	const text = cue.text.trim();
 	if (!text) {
 		return [];
@@ -440,15 +567,13 @@ export async function generateAutoCaptionsFromVideo(options: {
 			await ensureReadableFile(transcribeCliPath, { executable: true });
 
 			const tempDir = path.dirname(wavPath);
-			await executeTranscribeKit(transcribeCliPath, wavPath, tempDir, language);
-
-			const baseName = path.basename(wavPath, path.extname(wavPath));
-			const generatedSrtPath = path.join(tempDir, `${baseName}.srt`);
-
-			const srtContent = await fs.readFile(generatedSrtPath, "utf-8");
-			cues = parseSrtCues(srtContent);
-			await fs.rm(generatedSrtPath, { force: true }).catch(() => {
-				// Ignore cleanup error for temporary srt file
+			cues = await transcribeKitWavToCues({
+				transcribeCliPath,
+				wavPath,
+				outputDir: tempDir,
+				language,
+				ffmpegPath,
+				ffprobePath: getFfprobeBinaryPath(),
 			});
 		} else {
 			if (!options.whisperModelPath) {

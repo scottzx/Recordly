@@ -839,6 +839,7 @@ interface Window {
 			canceled?: boolean;
 			error?: string;
 		}>;
+		onProjectFileChanged: (callback: (payload: { path: string }) => void) => () => void;
 		openProjectsDirectory: () => Promise<{
 			success: boolean;
 			path?: string;

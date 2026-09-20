@@ -198,7 +198,10 @@
 			"split": "Teilen",
 			"merge": "Zusammenführen",
 			"delete": "Löschen"
-		}
+		},
+		"keepTimestampedClips": "Keep captioned clips",
+		"keepTimestampedClipsMissing": "Generate captions first so clips can be split on timestamps.",
+		"keepTimestampedClipsDone": "Kept {{count}} captioned clips"
 	},
 	"crop": {
 		"title": "Video zuschneiden",

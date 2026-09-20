@@ -81,7 +81,7 @@ async function main() {
 	}
 
 	if (argv.includes("-v") || argv.includes("--version")) {
-		console.log("recordly-cli v1.4.0");
+		console.log("recordly-cli v1.5.0-beta.1");
 		process.exit(0);
 	}
 

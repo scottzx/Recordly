@@ -21,6 +21,38 @@ describe("isMissingWindowsWhisperRuntimeDependency", () => {
 	});
 });
 
+describe("offsetCaptionCues", () => {
+	it("shifts cue and word timings by the chunk offset", async () => {
+		const { offsetCaptionCues } = await import("./generate");
+		const shifted = offsetCaptionCues(
+			[
+				{
+					id: "caption-1",
+					startMs: 120,
+					endMs: 1800,
+					text: "hello",
+					words: [{ text: "hello", startMs: 120, endMs: 1800 }],
+				},
+			],
+			25_000,
+		);
+		expect(shifted[0]?.startMs).toBe(25_120);
+		expect(shifted[0]?.endMs).toBe(26_800);
+		expect(shifted[0]?.words?.[0]?.startMs).toBe(25_120);
+	});
+});
+
+describe("buildCaptionExtractArgs", () => {
+	it("normalizes quiet speech before TranscribeKit VAD", async () => {
+		const { buildCaptionExtractArgs, CAPTION_AUDIO_FILTER } = await import("./generate");
+		const args = buildCaptionExtractArgs("/tmp/input.mp4", "/tmp/out.wav");
+		expect(CAPTION_AUDIO_FILTER).toContain("loudnorm");
+		expect(args).toContain("-af");
+		expect(args).toContain(CAPTION_AUDIO_FILTER);
+		expect(args).toContain("16000");
+	});
+});
+
 describe("processTranscribeKitCues", () => {
 	it("splits multi-sentence and long clause cues into properly timed cues with words", async () => {
 		const { processTranscribeKitCues } = await import("./generate");

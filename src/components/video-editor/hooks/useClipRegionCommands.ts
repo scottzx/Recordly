@@ -4,7 +4,8 @@ import { toast } from "sonner";
 import { changeClipSpan } from "../clipSpanChange";
 import { planClipSpeedChange } from "../clipSpeedChange";
 import { planClipSplit } from "../clipSplit";
-import type { ClipRegion, EditorEffectSection, ZoomRegion } from "../types";
+import { planKeepTimestampedClips } from "../clipTimestampKeep";
+import type { CaptionCue, ClipRegion, EditorEffectSection, ZoomRegion } from "../types";
 import { supportsPreviewPlaybackRate } from "../videoPlayback/playbackRate";
 
 type Translator = (
@@ -27,6 +28,7 @@ interface UseClipRegionCommandsParams {
 	setSelectedCaptionId: Dispatch<SetStateAction<string | null>>;
 	setActiveEffectSection: Dispatch<SetStateAction<EditorEffectSection>>;
 	nextClipIdRef: MutableRefObject<number>;
+	autoCaptions: CaptionCue[];
 	t: Translator;
 }
 
@@ -44,6 +46,7 @@ export function useClipRegionCommands({
 	setSelectedCaptionId,
 	setActiveEffectSection,
 	nextClipIdRef,
+	autoCaptions,
 	t,
 }: UseClipRegionCommandsParams) {
 	const handleSelectClip = useCallback(
@@ -185,6 +188,30 @@ export function useClipRegionCommands({
 		[selectedClipId, setClipRegions, setSelectedClipId],
 	);
 
+	const handleKeepTimestampedClips = useCallback(() => {
+		if (autoCaptions.length === 0) {
+			toast.error(
+				t(
+					"settings.captions.keepTimestampedClipsMissing",
+					"Generate captions first so clips can be split on timestamps.",
+				),
+			);
+			return;
+		}
+		const nextClips = planKeepTimestampedClips({
+			clipRegions,
+			timestamps: autoCaptions,
+			createId: () => `clip-${nextClipIdRef.current++}`,
+		});
+		setClipRegions(nextClips);
+		setSelectedClipId(null);
+		toast.success(
+			t("settings.captions.keepTimestampedClipsDone", "Kept {{count}} captioned clips", {
+				count: nextClips.length,
+			}),
+		);
+	}, [autoCaptions, clipRegions, nextClipIdRef, setClipRegions, setSelectedClipId, t]);
+
 	return {
 		handleSelectClip,
 		handleClipSplit,
@@ -193,5 +220,6 @@ export function useClipRegionCommands({
 		handleClipMutedChange,
 		handleClipShowSourceAudioChange,
 		handleClipDelete,
+		handleKeepTimestampedClips,
 	};
 }
