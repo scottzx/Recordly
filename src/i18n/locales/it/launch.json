@@ -100,6 +100,20 @@
 		"empty": "No saved projects yet",
 		"emptyHint": "Start a new recording to create one",
 		"noPreview": "No preview",
-		"backToProjects": "Projects"
+		"backToProjects": "Projects",
+		"workspace": "Your creative workspace",
+		"newProject": "New project",
+		"recordHint": "Capture your screen and turn it into a project",
+		"importFile": "Import a file",
+		"importHint": "Start with a video or open a saved project",
+		"allProjects": "All projects",
+		"search": "Search projects",
+		"sort": "Sort projects",
+		"recent": "Recently updated",
+		"name": "Name",
+		"current": "Current",
+		"noResults": "No matching projects",
+		"searchHint": "Try a different name or clear your search",
+		"clearSearch": "Clear search"
 	}
 }

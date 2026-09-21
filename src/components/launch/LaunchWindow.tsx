@@ -586,6 +586,7 @@ function LaunchWindowContent() {
 									entries={projectLibraryEntries}
 									onOpenProject={openProjectFromLibrary}
 									onNewRecording={() => setShowLaunchHome(false)}
+									onImportFile={() => void openVideoFile()}
 								/>
 							) : null}
 							<motion.div
