@@ -1,3 +1,5 @@
+export const BROLL_ROW_ID = "row-broll";
+export const PACKAGING_ROW_ID = "row-packaging";
 export const ZOOM_ROW_ID = "row-zoom";
 export const CLIP_ROW_ID = "row-clip";
 export const ANNOTATION_ROW_ID = "row-annotation";

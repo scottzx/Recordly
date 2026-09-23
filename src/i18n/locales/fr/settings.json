@@ -163,6 +163,7 @@
 		"crop": "Recadrage"
 	},
 	"captions": {
+		"engine": "Moteur de reconnaissance",
 		"selectOnTimeline": "Sélectionnez un sous-titre sur la timeline pour le modifier.",
 		"enabled": "Afficher",
 		"timelineQuickAdd": "Survoler pour ajouter sur la timeline",
@@ -197,7 +198,10 @@
 			"split": "Split",
 			"merge": "Merge",
 			"delete": "Delete"
-		}
+		},
+		"keepTimestampedClips": "Keep captioned clips",
+		"keepTimestampedClipsMissing": "Generate captions first so clips can be split on timestamps.",
+		"keepTimestampedClipsDone": "Kept {{count}} captioned clips"
 	},
 	"crop": {
 		"title": "Recadrer la vidéo",

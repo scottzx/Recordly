@@ -477,7 +477,9 @@ export async function loadProjectFromPath(projectPath: string) {
 			}
 		}
 	}
-	await replaceApprovedSessionLocalReadPaths(approvedProjectPaths);
+	const compositionAssets = (projectObj.composition as {assets?: {path?:string}[]} | undefined)?.assets;
+ for (const asset of compositionAssets ?? []) if (typeof asset.path === "string") approvedProjectPaths.push(asset.path);
+ await replaceApprovedSessionLocalReadPaths(approvedProjectPaths);
 	await rememberRecentProject(normalizedPath);
 
 	setCurrentProjectPath(normalizedPath);

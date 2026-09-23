@@ -163,6 +163,7 @@
 		"crop": "裁剪"
 	},
 	"captions": {
+		"engine": "识别引擎",
 		"selectOnTimeline": "在时间轴上选择字幕进行编辑。",
 		"enabled": "显示",
 		"timelineQuickAdd": "悬停以在时间轴上添加",
@@ -197,7 +198,10 @@
 			"split": "Split",
 			"merge": "Merge",
 			"delete": "Delete"
-		}
+		},
+		"keepTimestampedClips": "只保留有字幕的片段",
+		"keepTimestampedClipsMissing": "请先生成字幕，再按时间戳分割并裁切 CLIP。",
+		"keepTimestampedClipsDone": "已保留 {{count}} 段有字幕的 CLIP"
 	},
 	"crop": {
 		"title": "裁剪视频",

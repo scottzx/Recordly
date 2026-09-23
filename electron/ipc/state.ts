@@ -112,8 +112,16 @@ export type { CursorInteractionType, CursorTelemetryPoint };
 export function setSelectedSource(v: SelectedSource | null) {
 	selectedSource = v;
 }
+type CurrentProjectPathListener = (projectPath: string | null) => void;
+let currentProjectPathListener: CurrentProjectPathListener | null = null;
+
+export function setCurrentProjectPathListener(listener: CurrentProjectPathListener | null) {
+	currentProjectPathListener = listener;
+}
+
 export function setCurrentProjectPath(v: string | null) {
 	currentProjectPath = v;
+	currentProjectPathListener?.(v);
 }
 export function setCurrentVideoPath(v: string | null) {
 	currentVideoPath = v;

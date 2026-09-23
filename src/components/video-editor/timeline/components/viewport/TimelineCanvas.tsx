@@ -16,6 +16,8 @@ import type {
 } from "@/components/video-editor/audio/audioTypes";
 import { cn } from "@/lib/utils";
 import {
+	BROLL_ROW_ID,
+	PACKAGING_ROW_ID,
 	CAPTION_ROW_ID,
 	CLIP_ROW_ID,
 	SOURCE_AUDIO_ROW_ID,
@@ -478,14 +480,32 @@ const TimelineCanvasRows = memo(function TimelineCanvasRows({
 	onCaptionRowClick,
 }: TimelineCanvasRowsProps) {
 	const hiddenIds = useMemo(() => new Set(liveHiddenItemIds ?? []), [liveHiddenItemIds]);
-	const { clipItems, zoomItems, captionItems, annotationRows, audioRows } = useMemo(() => {
+	const {
+		clipItems,
+		brollItems,
+		packagingItems,
+		zoomItems,
+		captionItems,
+		annotationRows,
+		audioRows,
+	} = useMemo(() => {
 		const nextClipItems: TimelineRenderItem[] = [];
+		const brollItems: TimelineRenderItem[] = [];
+		const packagingItems: TimelineRenderItem[] = [];
 		const nextZoomItems: TimelineRenderItem[] = [];
 		const nextCaptionItems: TimelineRenderItem[] = [];
 		const annotationBuckets = new Map<number, TimelineRenderItem[]>();
 		const audioBuckets = new Map<number, TimelineRenderItem[]>();
 
 		for (const item of items) {
+			if (item.rowId === BROLL_ROW_ID) {
+				brollItems.push(item);
+				continue;
+			}
+			if (item.rowId === PACKAGING_ROW_ID) {
+				packagingItems.push(item);
+				continue;
+			}
 			if (item.rowId === CLIP_ROW_ID) {
 				nextClipItems.push(item);
 				continue;
@@ -528,6 +548,8 @@ const TimelineCanvasRows = memo(function TimelineCanvasRows({
 
 		return {
 			clipItems: nextClipItems,
+			brollItems,
+			packagingItems,
 			zoomItems: nextZoomItems,
 			captionItems: nextCaptionItems,
 			annotationRows: annotationRowsSorted,
@@ -537,7 +559,13 @@ const TimelineCanvasRows = memo(function TimelineCanvasRows({
 
 	return (
 		<>
-			<Row id={CLIP_ROW_ID} isEmpty={clipItems.length === 0} hint={HINT_CLIP}>
+			<Row
+				id={CLIP_ROW_ID}
+				label="A-roll · 主讲"
+				labelColor="#60a5fa"
+				isEmpty={clipItems.length === 0}
+				hint={HINT_CLIP}
+			>
 				<ClipMarkerOverlay videoDurationMs={videoDurationMs} />
 				{clipItems.map((item) => (
 					<Item
@@ -554,6 +582,49 @@ const TimelineCanvasRows = memo(function TimelineCanvasRows({
 					</Item>
 				))}
 			</Row>
+			<Row
+				id={BROLL_ROW_ID}
+				label="B-roll · 辅助素材"
+				labelColor="#34d399"
+				isEmpty={brollItems.length === 0}
+				hint="在「镜头与素材」中添加辅助视频或图片"
+			>
+				{brollItems.map((item) => (
+					<Item
+						key={item.id}
+						id={item.id}
+						rowId={item.rowId}
+						span={item.span}
+						variant="annotation"
+						isSelected={item.id === selectedAnnotationId}
+						onSelectId={onSelectAnnotation}
+					>
+						{item.label}
+					</Item>
+				))}
+			</Row>
+			<Row
+				id={PACKAGING_ROW_ID}
+				label="包装 · 片头 / 章节 / 观点 / 片尾"
+				labelColor="#c084fc"
+				isEmpty={packagingItems.length === 0}
+				hint="在「镜头与素材」中插入包装幕"
+			>
+				{packagingItems.map((item) => (
+					<Item
+						key={item.id}
+						id={item.id}
+						rowId={item.rowId}
+						span={item.span}
+						variant="clip"
+						isSelected={item.id === selectedClipId}
+						onSelectId={onSelectClip}
+					>
+						{item.label}
+					</Item>
+				))}
+			</Row>
+
 			{showSourceAudioTrack &&
 				sourceAudioTracks.map((track) => (
 					<Row key={track.id} id={`${SOURCE_AUDIO_ROW_ID}-${track.id}`}>
@@ -942,10 +1013,10 @@ export default function TimelineCanvas({
 		// exists), so count it whenever captionsEnabled — not only when a caption item is
 		// present — or the min-height/stretch math undersizes the empty lane.
 		const captionRows = hasCaptionRow || captionsEnabled ? 1 : 0;
-		return 2 + sourceAudioRows + annotationRowIds.size + audioRowIds.size + captionRows;
+		return 4 + sourceAudioRows + annotationRowIds.size + audioRowIds.size + captionRows;
 	}, [items, showSourceAudioTrack, sourceAudioTracks.length, captionsEnabled]);
-	const timelineRowsMinHeightPx = getTimelineRowsMinHeightPx(timelineRowCount);
-	const timelineContentMinHeightPx = getTimelineContentMinHeightPx(timelineRowCount);
+	const timelineRowsMinHeightPx = getTimelineRowsMinHeightPx(timelineRowCount) + 48;
+	const timelineContentMinHeightPx = getTimelineContentMinHeightPx(timelineRowCount) + 48;
 	const timelineViewportStretchFactor = getTimelineViewportStretchFactor(timelineRowCount);
 	const sideProperty = direction === "rtl" ? "right" : "left";
 	const {

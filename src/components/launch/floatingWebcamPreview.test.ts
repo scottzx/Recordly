@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import {
 	canShowFloatingWebcamPreview,
 	canToggleFloatingWebcamPreview,
+	shouldStartWebcamStream,
 } from "./floatingWebcamPreview";
 
 describe("canShowFloatingWebcamPreview", () => {
@@ -11,6 +12,35 @@ describe("canShowFloatingWebcamPreview", () => {
 		expect(canShowFloatingWebcamPreview(false, true)).toBe(false);
 		expect(canShowFloatingWebcamPreview(true, false)).toBe(false);
 		expect(canShowFloatingWebcamPreview(true, null)).toBe(false);
+	});
+});
+
+describe("shouldStartWebcamStream", () => {
+	it("does not start the camera until recording begins", () => {
+		expect(
+			shouldStartWebcamStream({
+				recording: false,
+				webcamEnabled: true,
+				floatingPreviewRequested: true,
+				hudOverlayMousePassthroughSupported: true,
+			}),
+		).toBe(false);
+		expect(
+			shouldStartWebcamStream({
+				recording: true,
+				webcamEnabled: true,
+				floatingPreviewRequested: true,
+				hudOverlayMousePassthroughSupported: true,
+			}),
+		).toBe(true);
+		expect(
+			shouldStartWebcamStream({
+				recording: true,
+				webcamEnabled: false,
+				floatingPreviewRequested: true,
+				hudOverlayMousePassthroughSupported: true,
+			}),
+		).toBe(false);
 	});
 });
 

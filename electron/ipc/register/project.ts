@@ -1,3 +1,4 @@
+import { registerCompositionHandlers } from "./composition";
 import { randomUUID } from "node:crypto";
 import { constants as fsConstants } from "node:fs";
 import fs from "node:fs/promises";
@@ -7,6 +8,7 @@ import { RECORDINGS_DIR } from "../../appPaths";
 import { buildMediaUrl, getMediaServerBaseUrl } from "../../mediaServer";
 import { LEGACY_PROJECT_FILE_EXTENSIONS, PROJECT_FILE_EXTENSION } from "../constants";
 import { getProjectBackupPath, writeProjectFileAtomically } from "../project/atomicSave";
+import { stopProjectFileWatch, syncProjectFileWatch } from "../project/fileWatch";
 import {
 	getProjectsDir,
 	getProjectThumbnailPath,
@@ -29,6 +31,7 @@ import {
 	currentRecordingSession,
 	currentVideoPath,
 	setCurrentProjectPath,
+	setCurrentProjectPathListener,
 	setCurrentRecordingSession,
 	setCurrentVideoPath,
 } from "../state";
@@ -211,6 +214,11 @@ async function ensureNamedProjectSaveDoesNotOverwriteDifferentProject(
 }
 
 export function registerProjectHandlers() {
+ registerCompositionHandlers();
+	setCurrentProjectPathListener((projectPath) => {
+		void (projectPath ? syncProjectFileWatch(projectPath) : stopProjectFileWatch());
+	});
+
 	ipcMain.handle("reveal-in-folder", async (_, filePath: string) => {
 		try {
 			// shell.showItemInFolder doesn't return a value, it throws on error

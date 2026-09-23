@@ -6,6 +6,7 @@ export default defineConfig({
 		globals: true,
 		environment: "node",
 		include: [
+			"cli/**/*.{test,spec}.{js,mjs,cjs,ts,mts,cts,jsx,tsx}",
 			"src/**/*.{test,spec}.{js,mjs,cjs,ts,mts,cts,jsx,tsx}",
 			"electron/**/*.{test,spec}.{js,mjs,cjs,ts,mts,cts,jsx,tsx}",
 		],

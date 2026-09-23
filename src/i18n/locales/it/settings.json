@@ -163,6 +163,7 @@
 		"crop": "Ritaglio"
 	},
 	"captions": {
+		"engine": "Motore di riconoscimento",
 		"selectOnTimeline": "Seleziona un sottotitolo sulla timeline per modificarlo.",
 		"enabled": "Mostra",
 		"timelineQuickAdd": "Passa il mouse per aggiungere sulla timeline",
@@ -197,7 +198,10 @@
 			"split": "Split",
 			"merge": "Merge",
 			"delete": "Delete"
-		}
+		},
+		"keepTimestampedClips": "Keep captioned clips",
+		"keepTimestampedClipsMissing": "Generate captions first so clips can be split on timestamps.",
+		"keepTimestampedClipsDone": "Kept {{count}} captioned clips"
 	},
 	"crop": {
 		"title": "Ritaglia video",

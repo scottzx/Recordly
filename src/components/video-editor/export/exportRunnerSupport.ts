@@ -14,6 +14,7 @@ import type { useExportSession } from "./useExportSession";
 import type { useExportSettings } from "./useExportSettings";
 
 export type ExportRunnerInput = {
+	compositionProject?: import("../../../../shared/composition").CompositionProject | null;
 	videoPath: string | null;
 	videoPlaybackRef: RefObject<VideoPlaybackRef | null>;
 	isPlaying: boolean;

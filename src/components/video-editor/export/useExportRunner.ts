@@ -1,3 +1,4 @@
+import { exportComposition } from "../composition/CompositionRenderer";
 import { useCallback, useRef } from "react";
 import { toast } from "sonner";
 import { getMp4ExportBitrate } from "@/lib/exporter/exportBitrate";
@@ -106,6 +107,51 @@ export function useExportRunner(input: ExportRunnerInput) {
 			try {
 				if (wasPlaying) {
 					videoPlaybackRef.current?.pause();
+				}
+
+				if (inputRef.current.compositionProject) {
+					if (settings.format !== "mp4")
+						throw new Error("包含镜头编排的工程请导出 MP4。");
+					const controller = new AbortController();
+					exporterRef.current = { cancel: () => controller.abort() };
+					const params = new URLSearchParams(location.search);
+					const composed = inputRef.current.compositionProject;
+					const result = await exportComposition(
+						{
+							...composed,
+							composition: {
+								...composed.composition,
+								fps: smokeExportConfig.enabled
+									? Number(params.get("smokeFps") || composed.composition.fps)
+									: mp4FrameRate,
+							},
+						},
+						{
+							signal: controller.signal,
+							outputPath: smokeExportConfig.enabled
+								? (smokeExportConfig.outputPath ?? undefined)
+								: undefined,
+							range: params.has("compositionRange")
+								? JSON.parse(params.get("compositionRange")!)
+								: undefined,
+							onProgress: (n) =>
+								setExportProgress({
+									currentFrame: Math.round(n * 100),
+									totalFrames: 100,
+									percentage: n * 100,
+									estimatedTimeRemaining: 0,
+								}),
+						},
+					);
+					if (exportWasCancelled()) return;
+					if (!result.success || !result.outputPath) throw new Error("导出未完成");
+					setExportedFilePath(result.outputPath);
+					showExportSuccessToast(result.outputPath);
+					if (smokeExportConfig.enabled) {
+						await writeSmokeExportReport(smokeExportConfig.outputPath, result);
+						window.close();
+					}
+					return;
 				}
 
 				// Get preview CONTAINER dimensions for scaling

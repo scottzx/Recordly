@@ -1,3 +1,5 @@
+import { compositionClips } from "../composition/timelineProjection";
+import { durationMs } from "../../../../shared/composition";
 /* biome-ignore-all lint/correctness/useExhaustiveDependencies: mutable timeline bootstrap refs intentionally do not trigger effects. */
 import { type MutableRefObject, useCallback, useEffect, useMemo } from "react";
 import { projectCaptionCues } from "../captionTimeline";
@@ -35,9 +37,29 @@ export function useTimelineProjection({
 	autoFullTrackIdRef,
 	autoFullTrackEndRef,
 }: Input) {
-	const { clipRegions, trimRegions, speedRegions, zoomRegions, autoCaptions } = timeline;
+	const {
+		clipRegions: legacyClips,
+		trimRegions,
+		speedRegions,
+		zoomRegions,
+		autoCaptions,
+	} = timeline;
+	const clipRegions = useMemo(
+		() => (timeline.composition ? compositionClips(timeline.composition) : legacyClips),
+		[timeline.composition, legacyClips],
+	);
+	const mainClips = useMemo(
+		() =>
+			timeline.composition
+				? clipRegions.filter((c) =>
+						timeline.composition!.shots.some((s) => s.id === c.id && s.kind === "main"),
+					)
+				: clipRegions,
+		[clipRegions, timeline.composition],
+	);
 
 	useEffect(() => {
+		if (timeline.composition) return;
 		const totalMs = Math.round(duration * 1000);
 		if (totalMs <= 0) return;
 		if (!initializedRef.current) {
@@ -75,6 +97,7 @@ export function useTimelineProjection({
 	}, [duration, clipRegions, trimRegions, nextClipIdRef, timeline.setClipRegions]);
 
 	useEffect(() => {
+		if (timeline.composition) return;
 		const totalMs = Math.round(duration * 1000);
 		if (totalMs > 0 && clipRegions.length > 0) {
 			timeline.setTrimRegions(clipsToTrims(clipRegions, totalMs));
@@ -91,13 +114,16 @@ export function useTimelineProjection({
 	);
 	const effectiveZoomRegions: ZoomRegion[] = zoomRegions;
 	const effectiveCaptionRegions = useMemo(
-		() => projectCaptionCues(autoCaptions, clipRegions),
-		[autoCaptions, clipRegions],
+		() => projectCaptionCues(autoCaptions, mainClips),
+		[autoCaptions, mainClips],
 	);
 	const timelinePlayheadTime = currentTime;
 	const timelineDuration = useMemo(
-		() => getTimelineDurationMs(clipRegions, duration * 1000) / 1000,
-		[clipRegions, duration],
+		() =>
+			timeline.composition
+				? durationMs(timeline.composition) / 1000
+				: getTimelineDurationMs(clipRegions, duration * 1000) / 1000,
+		[clipRegions, duration, timeline.composition],
 	);
 	const effectiveSpeedRegions = useMemo<SpeedRegion[]>(() => {
 		const clipDerived = clipRegions
@@ -122,6 +148,8 @@ export function useTimelineProjection({
 	}, [clipRegions, speedRegions]);
 
 	return {
+		clipRegions,
+		mainClips,
 		mapTimelineTimeToSourceTime: toSourceTime,
 		mapSourceTimeToTimelineTime: toTimelineTime,
 		effectiveZoomRegions,

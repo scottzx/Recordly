@@ -8,6 +8,7 @@ import type {
 } from "./types";
 
 export type EditorHistorySnapshot = {
+	composition?: import("../../../shared/composition").Composition | null;
 	zoomRegions: ZoomRegion[];
 	clipRegions: ClipRegion[];
 	speedRegions: SpeedRegion[];

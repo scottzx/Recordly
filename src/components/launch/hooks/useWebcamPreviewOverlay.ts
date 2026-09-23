@@ -1,20 +1,18 @@
 import { type PointerEvent, useCallback, useEffect, useRef, useState } from "react";
-import { canShowFloatingWebcamPreview } from "../floatingWebcamPreview";
+import { shouldStartWebcamStream } from "../floatingWebcamPreview";
 
 const WEBCAM_PREVIEW_DRAG_THRESHOLD = 6;
 const DEFAULT_WEBCAM_PREVIEW_OFFSET = { x: 0, y: 0 };
 
 export function useWebcamPreviewOverlay({
+	recording,
 	webcamEnabled,
 	webcamDeviceId,
-	showWebcamControls,
-	webcamPopoverOpen,
 	hudOverlayMousePassthroughSupported,
 }: {
+	recording: boolean;
 	webcamEnabled: boolean;
 	webcamDeviceId?: string;
-	showWebcamControls: boolean;
-	webcamPopoverOpen: boolean;
 	hudOverlayMousePassthroughSupported: boolean | null;
 }) {
 	const [showFloatingWebcamPreview, setShowFloatingWebcamPreview] = useState(true);
@@ -39,14 +37,13 @@ export function useWebcamPreviewOverlay({
 		dragging: boolean;
 	} | null>(null);
 	const isWebcamPreviewDraggingRef = useRef(false);
-	const showRecordingWebcamPreview =
-		webcamEnabled &&
-		canShowFloatingWebcamPreview(
-			showFloatingWebcamPreview,
-			hudOverlayMousePassthroughSupported,
-		);
-	const shouldStreamWebcamPreview =
-		webcamEnabled && (showRecordingWebcamPreview || (showWebcamControls && webcamPopoverOpen));
+	const showRecordingWebcamPreview = shouldStartWebcamStream({
+		recording,
+		webcamEnabled,
+		floatingPreviewRequested: showFloatingWebcamPreview,
+		hudOverlayMousePassthroughSupported,
+	});
+	const shouldStreamWebcamPreview = showRecordingWebcamPreview;
 
 	useEffect(() => {
 		if (!webcamEnabled) {

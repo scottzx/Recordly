@@ -1,3 +1,4 @@
+import { CompositionSettingsPanel } from "../composition/CompositionSettingsPanel";
 import {
 	Camera,
 	ClosedCaptioning,
@@ -26,6 +27,7 @@ type Props = {
 export function EditorSidebar({ t, activeSection, setActiveSection, settingsPanelProps }: Props) {
 	const sections = useMemo(
 		() => [
+			{ id: "composition" as const, label: "镜头与素材", icon: Camera },
 			{ id: "scene" as const, label: t("settings.sections.scene", "Scene"), icon: Sparkle },
 			{ id: "cursor" as const, label: t("settings.sections.cursor", "Cursor"), icon: Cursor },
 			{ id: "webcam" as const, label: t("settings.sections.webcam", "Webcam"), icon: Camera },
@@ -113,7 +115,9 @@ export function EditorSidebar({ t, activeSection, setActiveSection, settingsPane
 					</motion.button>
 				</div>
 			</div>
-			{activeSection === "extensions" ? (
+			{activeSection === "composition" ? (
+				<CompositionSettingsPanel />
+			) : activeSection === "extensions" ? (
 				<ExtensionManager />
 			) : (
 				<SettingsPanel {...settingsPanelProps} />

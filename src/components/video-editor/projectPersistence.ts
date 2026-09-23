@@ -74,7 +74,7 @@ import {
 } from "./types";
 import { convertLegacyWebcamRadiusToRoundness, normalizeWebcamCropRegion } from "./webcamOverlay";
 
-export const PROJECT_VERSION = 2;
+export const PROJECT_VERSION = 3;
 export const MACOS_DEFAULT_BORDER_RADIUS_PERCENT = 8;
 const LEGACY_BORDER_RADIUS_REFERENCE_PX = 1080;
 
@@ -91,6 +91,7 @@ export function legacyBorderRadiusPixelsToPercent(value: number): number {
 const DEFAULT_MOTION_PRESET = CURSOR_MOTION_PRESETS.focused;
 
 export interface ProjectEditorState {
+	composition?: import("../../../shared/composition").Composition;
 	wallpaper: string;
 	shadowIntensity: number;
 	backgroundBlur: number;
@@ -156,6 +157,7 @@ export interface ProjectEditorState {
 }
 
 export interface EditorProjectData {
+	composition?: import("../../../shared/composition").Composition;
 	version: number;
 	projectId?: string;
 	videoPath: string;
@@ -731,6 +733,11 @@ export function normalizeProjectEditor(editor: Partial<ProjectEditorState>): Pro
 			typeof rawAutoCaptionSettings.timelineQuickAdd === "boolean"
 				? rawAutoCaptionSettings.timelineQuickAdd
 				: DEFAULT_AUTO_CAPTION_SETTINGS.timelineQuickAdd,
+		engine:
+			rawAutoCaptionSettings.engine === "whisper" ||
+			rawAutoCaptionSettings.engine === "transcribe-kit"
+				? rawAutoCaptionSettings.engine
+				: DEFAULT_AUTO_CAPTION_SETTINGS.engine,
 		language:
 			typeof rawAutoCaptionSettings.language === "string" &&
 			rawAutoCaptionSettings.language.trim()
@@ -861,6 +868,7 @@ export function normalizeProjectEditor(editor: Partial<ProjectEditorState>): Pro
 		CURSOR_MOTION_PRESETS[resolveCursorMotionPresetId(normalizedMotionValues)];
 
 	return {
+		composition: editor.composition,
 		wallpaper: typeof editor.wallpaper === "string" ? editor.wallpaper : DEFAULT_WALLPAPER_PATH,
 		shadowIntensity: typeof editor.shadowIntensity === "number" ? editor.shadowIntensity : 0.67,
 		backgroundBlur: normalizedBackgroundBlur,
@@ -1092,10 +1100,12 @@ export function createProjectData(
 	editor: Partial<ProjectEditorState>,
 	projectId?: string | null,
 ): EditorProjectData {
+	const { composition, ...editorState } = editor;
 	return {
+		...(composition ? { composition } : {}),
 		version: PROJECT_VERSION,
 		...(typeof projectId === "string" && projectId.trim().length > 0 ? { projectId } : {}),
 		videoPath,
-		editor,
+		editor: editorState,
 	};
 }

@@ -714,10 +714,25 @@ interface Window {
 				error?: string;
 			}) => void,
 		) => () => void;
+		getTranscribeKitStatus: () => Promise<{
+			success: boolean;
+			available: boolean;
+			path: string | null;
+			engine?: string;
+			error?: string;
+		}>;
+		openTranscribeCliPicker: () => Promise<{
+			success: boolean;
+			path?: string;
+			canceled?: boolean;
+			error?: string;
+		}>;
 		generateAutoCaptions: (options: {
 			videoPath: string;
+			engine?: "transcribe-kit" | "whisper";
+			transcribeCliPath?: string;
 			whisperExecutablePath?: string;
-			whisperModelPath: string;
+			whisperModelPath?: string;
 			language?: string;
 		}) => Promise<{
 			success: boolean;
@@ -816,7 +831,11 @@ interface Window {
 			}>;
 			error?: string;
 		}>;
-		openProjectFileAtPath: (filePath: string) => Promise<{
+		compositionPickMedia: () => Promise<{path:string;durationMs:number;width:number;height:number;hasAudio:boolean}|null>;
+ compositionProbe: (filePath: string) => Promise<{durationMs:number;width:number;height:number;hasAudio:boolean}>;
+ compositionAudio: (project: unknown, videoPath:string, range?:{fromMs:number;toMs:number}) => Promise<{success:boolean;tempPath:string;hasAudio:boolean}>;
+ compositionCancel: () => Promise<void>;
+ openProjectFileAtPath: (filePath: string) => Promise<{
 			success: boolean;
 			path?: string;
 			project?: unknown;
@@ -824,6 +843,7 @@ interface Window {
 			canceled?: boolean;
 			error?: string;
 		}>;
+		onProjectFileChanged: (callback: (payload: { path: string }) => void) => () => void;
 		openProjectsDirectory: () => Promise<{
 			success: boolean;
 			path?: string;

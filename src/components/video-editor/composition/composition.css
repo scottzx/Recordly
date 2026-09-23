@@ -1,0 +1,41 @@
+.composition-settings h2 {
+	font-weight: 600;
+	margin: 16px 0 10px;
+}
+.composition-settings label {
+	display: block;
+	margin: 10px 0;
+	color: hsl(var(--muted-foreground));
+	font-size: 12px;
+}
+.composition-settings input:not([type="checkbox"]),
+.composition-settings select {
+	display: block;
+	width: 100%;
+	margin-top: 5px;
+	padding: 7px;
+	border: 1px solid hsl(var(--border));
+	border-radius: 6px;
+	color: hsl(var(--foreground));
+	background: hsl(var(--background));
+}
+.composition-settings button {
+	padding: 7px 10px;
+	margin: 4px 4px 4px 0;
+	border-radius: 6px;
+	background: hsl(var(--muted));
+	font-size: 12px;
+}
+.composition-settings button:hover {
+	background: hsl(var(--accent));
+}
+.composition-settings small {
+	color: hsl(var(--muted-foreground));
+}
+.composition-preview canvas {
+	max-width: 100%;
+	max-height: 100%;
+	object-fit: contain;
+	width: 100%;
+	height: 100%;
+}

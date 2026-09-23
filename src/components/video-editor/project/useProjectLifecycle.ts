@@ -1,3 +1,4 @@
+import { validateComposition, type CompositionProject } from "../../../../shared/composition";
 /* biome-ignore-all lint/correctness/useExhaustiveDependencies: editor domain setters and refs are stable. */
 import {
 	type Dispatch,
@@ -5,6 +6,7 @@ import {
 	type RefObject,
 	type SetStateAction,
 	useCallback,
+	useEffect,
 	useMemo,
 	useRef,
 } from "react";
@@ -83,11 +85,14 @@ export function useProjectLifecycle(input: Input) {
 		const current = inputRef.current;
 		const { project, appearance, timeline, exportSettings, refs } = current;
 		if (!validateProjectData(candidate)) return false;
+		if (candidate.composition && validateComposition(candidate as CompositionProject).length)
+			return false;
 		const loadedProject = candidate;
 		const sourcePath = fromFileUrl(loadedProject.videoPath);
 		const persistedEditor = stripPersistedDevMotionBlurSettings(loadedProject.editor ?? {});
 		const editor = normalizeProjectEditor({
 			...persistedEditor,
+			composition: loadedProject.composition,
 			borderRadius:
 				loadedProject.version < 2 && typeof persistedEditor.borderRadius === "number"
 					? persistedEditor.borderRadius === 0
@@ -169,6 +174,7 @@ export function useProjectLifecycle(input: Input) {
 		timeline.setZoomRegions(editor.zoomRegions);
 		timeline.setTrimRegions(editor.trimRegions);
 		timeline.setClipRegions(editor.clipRegions);
+		timeline.setComposition(editor.composition ?? null);
 		// An explicit empty clip list means the user deleted all footage, not a legacy project.
 		refs.clipInitializedRef.current = Array.isArray(persistedEditor.clipRegions);
 		refs.autoFullTrackClipIdRef.current = null;
@@ -225,6 +231,15 @@ export function useProjectLifecycle(input: Input) {
 		await current.refreshProjectLibrary();
 		return true;
 	}, []);
+
+	useEffect(() => {
+		if (!window.electronAPI.onProjectFileChanged) return;
+		return window.electronAPI.onProjectFileChanged(async ({ path }) => {
+			const result = await window.electronAPI.openProjectFileAtPath(path);
+			if (!result.success || !result.project) return;
+			await applyLoadedProject(result.project, result.path ?? path);
+		});
+	}, [applyLoadedProject]);
 
 	const currentProjectSnapshot = useMemo(
 		() =>
@@ -331,6 +346,7 @@ export function useProjectLifecycle(input: Input) {
 		timeline.setZoomRegions([]);
 		timeline.setTrimRegions([]);
 		timeline.setClipRegions([]);
+		timeline.setComposition(null);
 		refs.clipInitializedRef.current = false;
 		refs.autoFullTrackClipIdRef.current = null;
 		refs.autoFullTrackClipEndMsRef.current = null;

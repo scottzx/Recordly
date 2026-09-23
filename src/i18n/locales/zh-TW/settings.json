@@ -163,6 +163,7 @@
 		"crop": "裁切"
 	},
 	"captions": {
+		"engine": "辨識引擎",
 		"selectOnTimeline": "在時間軸上選擇字幕進行編輯。",
 		"enabled": "顯示",
 		"timelineQuickAdd": "懸停以在時間軸上新增",
@@ -197,7 +198,10 @@
 			"split": "Split",
 			"merge": "Merge",
 			"delete": "Delete"
-		}
+		},
+		"keepTimestampedClips": "只保留有字幕的片段",
+		"keepTimestampedClipsMissing": "請先產生字幕，再依時間戳分割並裁切 CLIP。",
+		"keepTimestampedClipsDone": "已保留 {{count}} 段有字幕的 CLIP"
 	},
 	"crop": {
 		"title": "裁切影片",

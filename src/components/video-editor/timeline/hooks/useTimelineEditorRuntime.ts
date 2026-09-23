@@ -23,6 +23,7 @@ import { useTimelineNormalization } from "./useTimelineNormalization";
 import { useTimelineSelection } from "./useTimelineSelection";
 
 interface UseTimelineEditorRuntimeParams {
+	sequenceMode?: boolean;
 	ref: ForwardedRef<TimelineEditorHandle>;
 	videoDuration: number;
 	totalMs: number;
@@ -73,6 +74,7 @@ interface UseTimelineEditorRuntimeParams {
 }
 
 export function useTimelineEditorRuntime({
+	sequenceMode = false,
 	ref,
 	videoDuration,
 	totalMs,
@@ -169,6 +171,7 @@ export function useTimelineEditorRuntime({
 	});
 
 	useTimelineNormalization({
+		disabled: sequenceMode,
 		totalMs,
 		safeMinDurationMs,
 		zoomRegions,
@@ -188,6 +191,7 @@ export function useTimelineEditorRuntime({
 		getResolvedDropRowId,
 		handleItemSpanChange,
 	} = useTimelineDndBindings({
+		sequenceMode,
 		zoomRegions,
 		trimRegions,
 		clipRegions,

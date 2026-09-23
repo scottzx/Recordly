@@ -1,3 +1,7 @@
+import {
+	CompositionEditingContext,
+	useCompositionEditing,
+} from "./composition/useCompositionEditing";
 /* biome-ignore-all lint/correctness/useExhaustiveDependencies: setters returned by the editor's domain-state hooks are stable React dispatchers. */
 import { useCallback, useEffect, useMemo } from "react";
 import { useI18n } from "@/contexts/I18nContext";
@@ -253,7 +257,17 @@ export default function VideoEditor() {
 		autoCaption: autoCaptionController,
 	} = projectController;
 
+	const compositionEditing = useCompositionEditing({
+		state: timeline,
+		editor: projectController.snapshot.currentPersistedEditorState,
+		source: projectController.snapshot.currentSourcePath,
+		duration,
+		time: currentTime,
+		setSection: setActiveEffectSection,
+	});
+
 	const editing = useTimelineEditingController({
+		compositionEditing,
 		t,
 		shortcuts,
 		isMac,
@@ -301,6 +315,7 @@ export default function VideoEditor() {
 	const { effectiveSpeedRegions, effectiveZoomRegions } = projection;
 
 	const exportController = useEditorExportController({
+		compositionProject: compositionEditing.project,
 		t,
 		videoPath,
 		videoSourcePath,
@@ -366,27 +381,29 @@ export default function VideoEditor() {
 		handleClearWebcam,
 	});
 	return (
-		<EditorShell
-			t={t}
-			project={project}
-			appearance={appearance}
-			timeline={timeline}
-			ui={ui}
-			presets={presets}
-			projectController={projectController}
-			editing={editing}
-			exportController={exportController}
-			exportSettings={exportSettings}
-			exportSession={exportSession}
-			exportDimensions={exportDimensions}
-			settingsPanelProps={settingsPanelProps}
-			headerLeftControlsPaddingClass={headerLeftControlsPaddingClass}
-			hasCaptionsForSidecar={hasCaptionsForSidecar}
-			nvidiaCudaExportAvailable={nvidiaCudaExportAvailable}
-			experimentalNvidiaCudaExport={experimentalNvidiaCudaExport}
-			setExperimentalNvidiaCudaExport={setExperimentalNvidiaCudaExport}
-			effectiveShowCursor={effectiveShowCursor}
-			previewAspectRatioValue={previewAspectRatioValue}
-		/>
+		<CompositionEditingContext.Provider value={compositionEditing}>
+			<EditorShell
+				t={t}
+				project={project}
+				appearance={appearance}
+				timeline={timeline}
+				ui={ui}
+				presets={presets}
+				projectController={projectController}
+				editing={editing}
+				exportController={exportController}
+				exportSettings={exportSettings}
+				exportSession={exportSession}
+				exportDimensions={exportDimensions}
+				settingsPanelProps={settingsPanelProps}
+				headerLeftControlsPaddingClass={headerLeftControlsPaddingClass}
+				hasCaptionsForSidecar={hasCaptionsForSidecar}
+				nvidiaCudaExportAvailable={nvidiaCudaExportAvailable}
+				experimentalNvidiaCudaExport={experimentalNvidiaCudaExport}
+				setExperimentalNvidiaCudaExport={setExperimentalNvidiaCudaExport}
+				effectiveShowCursor={effectiveShowCursor}
+				previewAspectRatioValue={previewAspectRatioValue}
+			/>
+		</CompositionEditingContext.Provider>
 	);
 }

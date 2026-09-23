@@ -22,6 +22,9 @@ import { useTimelineProjection } from "./useTimelineProjection";
 import { useZoomRegionCommands } from "./useZoomRegionCommands";
 
 type Input = {
+	compositionEditing: ReturnType<
+		typeof import("../composition/useCompositionEditing").useCompositionEditing
+	>;
 	t: ReturnType<typeof useI18n>["t"];
 	shortcuts: ReturnType<typeof useShortcuts>["shortcuts"];
 	isMac: boolean;
@@ -95,8 +98,8 @@ export function useTimelineEditingController(input: Input) {
 		timelineTime: projection.timelinePlayheadTime,
 		currentTime: projection.mapTimelineTimeToSourceTime(input.currentTime * 1000) / 1000,
 		duration: input.duration,
-		isPlaying: input.isPlaying,
-		previewVolume: input.previewVolume,
+		isPlaying: !timeline.composition && input.isPlaying,
+		previewVolume: timeline.composition ? 0 : input.previewVolume,
 		sourceAudioFallbackRefreshKey: timeline.sourceAudioFallbackRefreshKey,
 		summarizeErrorMessage,
 		onSourceFallbackLoadError: handleSourceFallbackLoadError,
@@ -104,12 +107,14 @@ export function useTimelineEditingController(input: Input) {
 	const playback = useEditorPlaybackControls({
 		videoPlaybackRef: input.videoPlaybackRef,
 		timelineRef: input.timelineRef,
-		playSourceAudioPreview: audio.playSourceAudioPreview,
+		playSourceAudioPreview: timeline.composition
+			? async () => {}
+			: audio.playSourceAudioPreview,
 		timelinePlayheadTime: projection.timelinePlayheadTime,
 		timelineDuration: projection.timelineDuration,
 	});
 	const captionCommands = useCaptionCommands({
-		clipRegions: timeline.clipRegions,
+		clipRegions: projection.mainClips,
 		autoCaptions: timeline.autoCaptions,
 		setAutoCaptions: timeline.setAutoCaptions,
 		setAutoCaptionSettings: timeline.setAutoCaptionSettings,
@@ -171,7 +176,7 @@ export function useTimelineEditingController(input: Input) {
 		pendingFreshRecordingAutoSuggestTelemetryCountRef:
 			input.pendingFreshRecordingAutoSuggestTelemetryCountRef,
 	});
-	const clipCommands = useClipRegionCommands({
+	const legacyClipCommands = useClipRegionCommands({
 		sourceDurationMs: input.duration * 1000,
 		clipRegions: timeline.clipRegions,
 		setClipRegions: timeline.setClipRegions,
@@ -185,8 +190,26 @@ export function useTimelineEditingController(input: Input) {
 		setSelectedCaptionId: timeline.setSelectedCaptionId,
 		setActiveEffectSection: input.setActiveEffectSection,
 		nextClipIdRef: input.nextClipIdRef,
+		autoCaptions: timeline.autoCaptions,
 		t: input.t,
 	});
+	const comp = input.compositionEditing;
+	const clipCommands = timeline.composition
+		? {
+				...legacyClipCommands,
+				handleSelectClip: comp.select,
+				handleClipSpanChange: comp.span,
+				handleClipSplit: comp.split,
+				handleClipDelete: (id: string) => comp.operation({ type: "remove", id }),
+				handleClipSpeedChange: (speed: number) => {
+					if (timeline.selectedClipId)
+						comp.operation({ type: "speed", clipId: timeline.selectedClipId, speed });
+				},
+				handleKeepTimestampedClips: () =>
+					toast.info("请通过主讲片段分割和删减调整编排工程。"),
+			}
+		: legacyClipCommands;
+
 	const audioCommands = useAudioRegionCommands({
 		setAudioRegions: timeline.setAudioRegions,
 		selectedAudioId: timeline.selectedAudioId,

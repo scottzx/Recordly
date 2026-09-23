@@ -163,6 +163,7 @@
 		"crop": "Recorte"
 	},
 	"captions": {
+		"engine": "Motor de reconocimiento",
 		"selectOnTimeline": "Selecciona un subtítulo en la línea de tiempo para editarlo.",
 		"enabled": "Mostrar",
 		"timelineQuickAdd": "Pasar el cursor para añadir en la línea de tiempo",
@@ -197,7 +198,10 @@
 			"split": "Split",
 			"merge": "Merge",
 			"delete": "Delete"
-		}
+		},
+		"keepTimestampedClips": "Keep captioned clips",
+		"keepTimestampedClipsMissing": "Generate captions first so clips can be split on timestamps.",
+		"keepTimestampedClipsDone": "Kept {{count}} captioned clips"
 	},
 	"crop": {
 		"title": "Recortar video",

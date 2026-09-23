@@ -205,9 +205,36 @@ function groupWordsBySentence(words: CaptionWordPayload[]): CaptionWordPayload[]
  * continuous paragraph still becomes one caption per sentence.
  */
 function splitTextBySentence(cue: CaptionCuePayload): CaptionCuePayload[] {
-	const tokens = cue.text.trim().split(/\s+/).filter(Boolean);
+	const trimmed = cue.text.trim();
+	const tokens = trimmed.split(/\s+/).filter(Boolean);
 	if (tokens.length <= 1) {
-		return [cue];
+		const cjkSentenceRegex = /[^。！？!?…\n]+[。！？!?…\n]*/g;
+		const sentences: string[] = [];
+		let match = cjkSentenceRegex.exec(trimmed);
+		while (match !== null) {
+			const s = match[0].trim();
+			if (s) sentences.push(s);
+			match = cjkSentenceRegex.exec(trimmed);
+		}
+		if (sentences.length <= 1) {
+			return [cue];
+		}
+
+		const totalChars = sentences.reduce((sum, text) => sum + text.length, 0) || 1;
+		const spanMs = Math.max(1, cue.endMs - cue.startMs);
+		let cursorMs = cue.startMs;
+		return sentences.map((text, index) => {
+			const startMs = cursorMs;
+			const endMs =
+				index === sentences.length - 1
+					? cue.endMs
+					: Math.min(
+							cue.endMs - 1,
+							Math.round(startMs + (spanMs * text.length) / totalChars),
+						);
+			cursorMs = Math.max(startMs + 1, endMs);
+			return { id: cue.id, startMs, endMs: Math.max(startMs + 1, endMs), text };
+		});
 	}
 
 	const groups: string[][] = [];

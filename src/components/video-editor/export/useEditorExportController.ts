@@ -16,6 +16,7 @@ import { useExportStatusViewModel } from "./useExportStatusViewModel";
 import { useSmokeExportAutomation } from "./useSmokeExportAutomation";
 
 type Input = {
+	compositionProject?: import("../../../../shared/composition").CompositionProject | null;
 	t: ReturnType<typeof useI18n>["t"];
 	videoPath: string | null;
 	videoSourcePath: string | null;
@@ -46,6 +47,7 @@ type Input = {
 
 export function useEditorExportController(input: Input) {
 	const runner = useExportRunner({
+		compositionProject: input.compositionProject,
 		videoPath: input.videoPath,
 		videoPlaybackRef: input.videoPlaybackRef,
 		isPlaying: input.isPlaying,

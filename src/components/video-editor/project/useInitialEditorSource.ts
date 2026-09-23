@@ -76,6 +76,16 @@ export function useInitialEditorSource({
 
 				if (!smokeConfig.enabled && devConfig.inputPath) {
 					const sourcePath = fromFileUrl(devConfig.inputPath);
+					if (sourcePath.toLowerCase().endsWith(".recordly")) {
+						const result = await window.electronAPI.openProjectFileAtPath(sourcePath);
+						if (
+							!result.success ||
+							!(await applyLoadedProject(result.project, result.path ?? sourcePath))
+						)
+							throw new Error("Unable to open project");
+						return;
+					}
+
 					const webcamPath = devConfig.webcamInputPath
 						? fromFileUrl(devConfig.webcamInputPath)
 						: null;
@@ -155,6 +165,45 @@ export function useInitialEditorSource({
 				}
 
 				const sessionResult = await window.electronAPI.getCurrentRecordingSession?.();
+				const sessionVideoPath = sessionResult?.success
+					? (sessionResult.session?.videoPath ?? null)
+					: null;
+				const currentVideo = await window.electronAPI.getCurrentVideoPath();
+				const candidateVideoPath = fromFileUrl(
+					sessionVideoPath || (currentVideo.success ? (currentVideo.path ?? "") : ""),
+				);
+				if (candidateVideoPath) {
+					const library = await window.electronAPI.listProjectFiles();
+					const videoBase = candidateVideoPath
+						.replace(/\.[^.]+$/, "")
+						.split(/[\\/]/)
+						.pop();
+					const matchingProject = videoBase
+						? library.entries?.find((entry) => {
+								const projectBase = entry.name.replace(/\.[^.]+$/, "");
+								return (
+									projectBase === videoBase ||
+									entry.path.includes(`${videoBase}.`)
+								);
+							})
+						: null;
+					if (matchingProject) {
+						const matched = await window.electronAPI.openProjectFileAtPath(
+							matchingProject.path,
+						);
+						if (
+							matched.success &&
+							matched.project &&
+							(await applyLoadedProject(
+								matched.project,
+								matched.path ?? matchingProject.path,
+							))
+						) {
+							return;
+						}
+					}
+				}
+
 				if (sessionResult?.success && sessionResult.session?.videoPath) {
 					const sourcePath = fromFileUrl(sessionResult.session.videoPath);
 					const sourceUrl = await resolveVideoUrl(sourcePath);
@@ -176,7 +225,6 @@ export function useInitialEditorSource({
 					return;
 				}
 
-				const currentVideo = await window.electronAPI.getCurrentVideoPath();
 				if (!currentVideo.success || !currentVideo.path) {
 					project.setError("No video to load. Please record or select a video.");
 					return;

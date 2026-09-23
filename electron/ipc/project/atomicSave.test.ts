@@ -77,6 +77,16 @@ describe("writeProjectFileAtomically", () => {
 		await expectNoTemporaryArtifacts();
 	});
 
+ it('retains the original v2 migration backup across later v3 saves', async()=>{
+  const original='{"version":2,"editor":{"clipRegions":[]}}';
+  await writeProjectFileAtomically(projectPath,original);
+  await writeProjectFileAtomically(projectPath,'{"version":3,"revision":1}');
+  await writeProjectFileAtomically(projectPath,'{"version":3,"revision":2}');
+  expect(await fs.readFile(`${projectPath}.v2.bak`,'utf8')).toBe(original);
+  expect(await fs.readFile(getProjectBackupPath(projectPath),'utf8')).toBe('{"version":3,"revision":1}');
+  await expectNoTemporaryArtifacts();
+ });
+
 	it("serializes overlapping writes to the same project", async () => {
 		await writeProjectFileAtomically(projectPath, '{"revision":1}');
 

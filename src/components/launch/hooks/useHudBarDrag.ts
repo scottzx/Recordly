@@ -43,11 +43,11 @@ export function useHudBarDrag({
 	}, [recordingHudOffset]);
 
 	const keepHudBarInsideViewport = useCallback(() => {
-		if (isHudDraggingRef.current || !hudBarRef.current) {
+		if (isHudDraggingRef.current || !hudBarTransformRef.current) {
 			return;
 		}
 
-		const bounds = hudBarRef.current.getBoundingClientRect();
+		const bounds = hudBarTransformRef.current.getBoundingClientRect();
 		const nextOffset = clampHudOffsetToViewport(recordingHudOffsetRef.current, bounds, {
 			width: window.innerWidth,
 			height: window.innerHeight,
@@ -64,15 +64,15 @@ export function useHudBarDrag({
 			hudBarTransformRef.current.style.transform = `translate3d(${nextOffset.x}px, ${nextOffset.y}px, 0)`;
 		}
 		setRecordingHudOffset(nextOffset);
-	}, [hudBarRef]);
+	}, []);
 
 	useEffect(() => {
 		const resizeObserver =
 			typeof ResizeObserver === "undefined"
 				? null
 				: new ResizeObserver(keepHudBarInsideViewport);
-		if (hudBarRef.current) {
-			resizeObserver?.observe(hudBarRef.current);
+		if (hudBarTransformRef.current) {
+			resizeObserver?.observe(hudBarTransformRef.current);
 		}
 		window.addEventListener("resize", keepHudBarInsideViewport);
 
@@ -80,7 +80,7 @@ export function useHudBarDrag({
 			window.removeEventListener("resize", keepHudBarInsideViewport);
 			resizeObserver?.disconnect();
 		};
-	}, [hudBarRef, keepHudBarInsideViewport]);
+	}, [keepHudBarInsideViewport]);
 
 	const handleHudBarPointerDown = useCallback(
 		(event: PointerEvent<HTMLDivElement>) => {

@@ -107,6 +107,7 @@ export function normalizeCursorClickEffectColor(
 }
 
 export type EditorEffectSection =
+	| "composition"
 	| "scene"
 	| "cursor"
 	| "captions"
@@ -225,6 +226,9 @@ export interface TrimRegion {
 }
 
 export interface ClipRegion {
+	/** View-only classification for the composition timeline. */
+	timelineRole?: "aroll" | "packaging";
+	displayLabel?: string;
 	id: string;
 	/** Where the clip sits on the timeline. */
 	startMs: number;
@@ -470,6 +474,8 @@ export function getDefaultCaptionFontFamily() {
 }
 
 export interface AnnotationRegion {
+	/** View-only classification for the dedicated auxiliary media lane. */
+	timelineRole?: "broll";
 	id: string;
 	startMs: number;
 	endMs: number;
@@ -578,10 +584,13 @@ export interface CaptionCueWord {
 
 export type AutoCaptionAnimation = "none" | "fade" | "rise" | "pop";
 
+export type CaptionEngine = "transcribe-kit" | "whisper";
+
 export interface AutoCaptionSettings {
 	enabled: boolean;
 	/** Show the hover ghost on the timeline caption track for click-to-add. */
 	timelineQuickAdd: boolean;
+	engine: CaptionEngine;
 	language: string;
 	fontFamily: string;
 	fontSize: number;
@@ -598,6 +607,7 @@ export interface AutoCaptionSettings {
 export const DEFAULT_AUTO_CAPTION_SETTINGS: AutoCaptionSettings = {
 	enabled: false,
 	timelineQuickAdd: true,
+	engine: "transcribe-kit",
 	language: "auto",
 	fontFamily: getDefaultCaptionFontFamily(),
 	fontSize: 30,

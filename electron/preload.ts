@@ -742,10 +742,18 @@ contextBridge.exposeInMainWorld("electronAPI", {
 		ipcRenderer.on("whisper-small-model-download-progress", listener);
 		return () => ipcRenderer.removeListener("whisper-small-model-download-progress", listener);
 	},
+	getTranscribeKitStatus: () => {
+		return ipcRenderer.invoke("get-transcribe-kit-status");
+	},
+	openTranscribeCliPicker: () => {
+		return ipcRenderer.invoke("open-transcribe-cli-picker");
+	},
 	generateAutoCaptions: (options: {
 		videoPath: string;
+		engine?: "transcribe-kit" | "whisper";
+		transcribeCliPath?: string;
 		whisperExecutablePath?: string;
-		whisperModelPath: string;
+		whisperModelPath?: string;
 		language?: string;
 	}) => {
 		return ipcRenderer.invoke("generate-auto-captions", options);
@@ -790,7 +798,11 @@ contextBridge.exposeInMainWorld("electronAPI", {
 	deleteRecordingFile: (filePath: string) => {
 		return ipcRenderer.invoke("delete-recording-file", filePath);
 	},
-	getLocalMediaUrl: (filePath: string) => {
+	compositionPickMedia: () => ipcRenderer.invoke("composition-pick-media"),
+ compositionProbe: (filePath: string) => ipcRenderer.invoke("composition-probe", filePath),
+ compositionAudio: (project: unknown, videoPath: string, range?: {fromMs:number;toMs:number}) => ipcRenderer.invoke("composition-audio", project, videoPath, range),
+ compositionCancel: () => ipcRenderer.invoke("composition-cancel"),
+ getLocalMediaUrl: (filePath: string) => {
 		return ipcRenderer.invoke("get-local-media-url", filePath) as Promise<
 			{ success: true; url: string } | { success: false }
 		>;
@@ -837,6 +849,12 @@ contextBridge.exposeInMainWorld("electronAPI", {
 	},
 	openProjectFileAtPath: (filePath: string) => {
 		return ipcRenderer.invoke("open-project-file-at-path", filePath);
+	},
+	onProjectFileChanged: (callback: (payload: { path: string }) => void) => {
+		const listener = (_event: Electron.IpcRendererEvent, payload: { path: string }) =>
+			callback(payload);
+		ipcRenderer.on("project-file-changed", listener);
+		return () => ipcRenderer.removeListener("project-file-changed", listener);
 	},
 	openProjectsDirectory: () => {
 		return ipcRenderer.invoke("open-projects-directory");

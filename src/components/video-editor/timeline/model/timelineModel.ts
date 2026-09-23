@@ -7,7 +7,13 @@ import type {
 	ZoomRegion,
 } from "../../types";
 import { getClipSourceEndMs, getClipSourceStartMs } from "../../types";
-import { CAPTION_ROW_ID, CLIP_ROW_ID, ZOOM_ROW_ID } from "../core/constants";
+import {
+	BROLL_ROW_ID,
+	PACKAGING_ROW_ID,
+	CAPTION_ROW_ID,
+	CLIP_ROW_ID,
+	ZOOM_ROW_ID,
+} from "../core/constants";
 import {
 	getAnnotationTrackIndex,
 	getAnnotationTrackRowId,
@@ -68,10 +74,12 @@ export function buildTimelineItems(params: {
 
 		return {
 			id: region.id,
-			rowId: CLIP_ROW_ID,
+			rowId: region.timelineRole === "packaging" ? PACKAGING_ROW_ID : CLIP_ROW_ID,
 			span: { start: region.startMs, end: region.endMs },
 			sourceSpan: { start: getClipSourceStartMs(region), end: sourceEndMs },
-			label: speedLabel ? `Clip ${index + 1} ${speedLabel}` : `Clip ${index + 1}`,
+			label:
+				region.displayLabel ??
+				(speedLabel ? `Clip ${index + 1} ${speedLabel}` : `Clip ${index + 1}`),
 			speedValue: speedLabel ? speed : undefined,
 			showSourceAudio: region.showSourceAudio,
 			muted: Boolean(region.muted),
@@ -81,7 +89,10 @@ export function buildTimelineItems(params: {
 
 	const annotations: TimelineRenderItem[] = annotationRegions.map((region) => ({
 		id: region.id,
-		rowId: getAnnotationTrackRowId(region.trackIndex ?? 0),
+		rowId:
+			region.timelineRole === "broll"
+				? BROLL_ROW_ID
+				: getAnnotationTrackRowId(region.trackIndex ?? 0),
 		span: { start: region.startMs, end: region.endMs },
 		label: getAnnotationLabel(region),
 		variant: "annotation",

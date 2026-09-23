@@ -163,6 +163,7 @@
 		"crop": "Bijsnijden"
 	},
 	"captions": {
+		"engine": "Herkenningsengine",
 		"selectOnTimeline": "Selecteer een ondertitel op de tijdlijn om deze te bewerken.",
 		"enabled": "Tonen",
 		"timelineQuickAdd": "Aanwijzen om toe te voegen op tijdlijn",
@@ -197,7 +198,10 @@
 			"split": "Split",
 			"merge": "Merge",
 			"delete": "Delete"
-		}
+		},
+		"keepTimestampedClips": "Keep captioned clips",
+		"keepTimestampedClipsMissing": "Generate captions first so clips can be split on timestamps.",
+		"keepTimestampedClipsDone": "Kept {{count}} captioned clips"
 	},
 	"crop": {
 		"title": "Video bijsnijden",

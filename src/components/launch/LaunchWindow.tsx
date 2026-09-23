@@ -2,6 +2,7 @@ import {
 	ArrowClockwiseIcon,
 	CaretUpIcon,
 	DotsThreeVerticalIcon,
+	FolderOpenIcon,
 	MicrophoneIcon,
 	MicrophoneSlashIcon,
 	MinusIcon,
@@ -12,7 +13,7 @@ import {
 	XIcon,
 } from "@phosphor-icons/react";
 import { AnimatePresence, motion } from "motion/react";
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import { RxDragHandleDots2 } from "react-icons/rx";
 import { Separator } from "@/components/ui/separator";
 import { useScopedT } from "../../contexts/I18nContext";
@@ -29,6 +30,7 @@ import { useLaunchWindowActions } from "./hooks/useLaunchWindowActions";
 import { useLaunchWindowSystemState } from "./hooks/useLaunchWindowSystemState";
 import { useRecordingTimer } from "./hooks/useRecordingTimer";
 import { useWebcamPreviewOverlay } from "./hooks/useWebcamPreviewOverlay";
+import { LaunchHomePanel } from "./LaunchHomePanel";
 import styles from "./LaunchWindow.module.css";
 import { MarqueeText } from "./MarqueeText";
 import { CountdownPopover } from "./popovers/CountdownPopover";
@@ -56,6 +58,7 @@ export function LaunchWindow() {
 function LaunchWindowContent() {
 	const t = useScopedT("launch");
 	const { openId, requestClose, requestOpen } = useLaunchPopoverCoordinator();
+	const [showLaunchHome, setShowLaunchHome] = useState(true);
 
 	const {
 		recording,
@@ -96,7 +99,7 @@ function LaunchWindowContent() {
 		refreshProjectLibrary,
 	} = useLaunchWindowActions();
 
-	const showWebcamControls = webcamEnabled && !recording;
+	const showWebcamControls = webcamEnabled && recording;
 	const { devices, selectedDeviceId, setSelectedDeviceId } = useMicrophoneDevices(
 		microphoneEnabled || openId === "mic",
 		microphoneDeviceId,
@@ -105,7 +108,7 @@ function LaunchWindowContent() {
 		devices: videoDevices,
 		selectedDeviceId: selectedVideoDeviceId,
 		setSelectedDeviceId: setSelectedVideoDeviceId,
-	} = useVideoDevices(webcamEnabled || openId === "webcam");
+	} = useVideoDevices(webcamEnabled || openId === "webcam", recording);
 
 	const {
 		hudOverlayMousePassthroughSupported,
@@ -146,10 +149,9 @@ function LaunchWindowContent() {
 		setWebcamPreviewNode,
 		setRecordingWebcamPreviewNode,
 	} = useWebcamPreviewOverlay({
+		recording,
 		webcamEnabled,
 		webcamDeviceId,
-		showWebcamControls,
-		webcamPopoverOpen: openId === "webcam",
 		hudOverlayMousePassthroughSupported,
 	});
 
@@ -177,13 +179,24 @@ function LaunchWindowContent() {
 		recordingWebcamPreviewContainerRef,
 	});
 
+	const launchHomeActive = showLaunchHome && !recording && !finalizing;
 	const { handleHudMouseEnter, handleHudMouseLeave, beginInteractiveHudAction } =
 		useLaunchHudInteractionState({
-			openId,
+			openId: launchHomeActive ? "home" : openId,
 			isHudDraggingRef,
 			isWebcamPreviewDraggingRef,
 			webcamPreviewDragStartRef,
 		});
+
+	useEffect(() => {
+		void refreshProjectLibrary();
+	}, [refreshProjectLibrary]);
+
+	useEffect(() => {
+		if (recording) {
+			setShowLaunchHome(false);
+		}
+	}, [recording]);
 
 	useEffect(() => {
 		let mounted = true;
@@ -364,6 +377,107 @@ function LaunchWindowContent() {
 
 			<Separator orientation="vertical" className="mx-[5px] h-6" />
 
+			<Button
+				variant="ghost"
+				size="icon"
+				iconSize="lg"
+				title={t("home.backToProjects", "Projects")}
+				onClick={() => {
+					void refreshProjectLibrary();
+					setShowLaunchHome(true);
+				}}
+			>
+				<FolderOpenIcon size={18} />
+			</Button>
+
+			<div className="relative w-0 h-0">
+				<ProjectPopover
+					entries={projectLibraryEntries}
+					onOpenProject={openProjectFromLibrary}
+					trigger={<div className="absolute inset-0 pointer-events-none opacity-0" />}
+				/>
+			</div>
+
+			<MorePopover
+				supportsHudCaptureProtection={hudCaptureProtectionSupported}
+				hideHudFromCapture={hideHudFromCapture}
+				onToggleHudCaptureProtection={() => {
+					void toggleHudCaptureProtection();
+				}}
+				onChooseRecordingsDirectory={() => {
+					void chooseRecordingsDirectory();
+				}}
+				onOpenVideoFile={() => {
+					void openVideoFile();
+				}}
+				onOpenProjectBrowser={() => {
+					refreshProjectLibrary().then(() => {
+						requestOpen("projects");
+					});
+				}}
+				showDevUpdatePreview={SHOW_DEV_UPDATE_PREVIEW}
+				onPreviewUpdateUi={() => {
+					if (openId) requestClose(openId);
+					void window.electronAPI.previewUpdateToast().catch((error) => {
+						console.warn("Failed to preview update toast:", error);
+					});
+				}}
+				appVersion={appVersion}
+				trigger={
+					<Button variant="ghost" size="icon" iconSize="lg" title={t("recording.more")}>
+						<DotsThreeVerticalIcon size={18} />
+					</Button>
+				}
+			/>
+
+			<Button
+				variant="ghost"
+				size="icon"
+				iconSize="lg"
+				onClick={() => window.electronAPI?.hudOverlayHide?.()}
+				title={t("recording.hideHud")}
+			>
+				<MinusIcon size={16} />
+			</Button>
+
+			<Button
+				variant="ghost"
+				size="icon"
+				iconSize="lg"
+				onClick={() => window.electronAPI?.hudOverlayClose?.()}
+				title={t("recording.closeApp")}
+			>
+				<XIcon size={16} />
+			</Button>
+		</>
+	);
+
+	const homeControls = (
+		<>
+			<Button
+				type="button"
+				size="lg"
+				className={`${styles.electronNoDrag} gap-2 rounded-[11px] bg-[#2563EB] px-3 text-[12px] font-medium text-white hover:bg-[#2563EB]/90`}
+				onClick={() => setShowLaunchHome(false)}
+			>
+				<VideoCameraIcon size={16} />
+				{t("home.newRecording", "New recording")}
+			</Button>
+
+			<Button
+				variant="ghost"
+				size="icon"
+				iconSize="lg"
+				title={t("home.openFile", "Open file")}
+				onClick={() => {
+					void openVideoFile();
+				}}
+			>
+				<FolderOpenIcon size={18} />
+			</Button>
+
+			<Separator orientation="vertical" className="mx-[5px] h-6" />
+
 			<div className="relative w-0 h-0">
 				<ProjectPopover
 					entries={projectLibraryEntries}
@@ -436,7 +550,13 @@ function LaunchWindowContent() {
 		</div>
 	);
 
-	const hudMode = finalizing ? "finalizing" : recording ? "recording" : "idle";
+	const hudMode = finalizing
+		? "finalizing"
+		: recording
+			? "recording"
+			: showLaunchHome
+				? "home"
+				: "idle";
 	const useNativeHudBarDrag =
 		platform === "linux" || hudOverlayMousePassthroughSupported === false;
 	const shouldAnimateHudLayout = !recording && !showRecordingWebcamPreview && !isHudDragging;
@@ -456,10 +576,19 @@ function LaunchWindowContent() {
 					<div className="flex flex-col items-center pointer-events-none p-2">
 						<div
 							ref={hudBarTransformRef}
+							className="flex flex-col items-center"
 							style={{
 								transform: `translate3d(${recordingHudOffset.x}px, ${recordingHudOffset.y}px, 0)`,
 							}}
 						>
+							{hudMode === "home" ? (
+								<LaunchHomePanel
+									entries={projectLibraryEntries}
+									onOpenProject={openProjectFromLibrary}
+									onNewRecording={() => setShowLaunchHome(false)}
+									onImportFile={() => void openVideoFile()}
+								/>
+							) : null}
 							<motion.div
 								ref={hudBarRef}
 								layout={shouldAnimateHudLayout}
@@ -513,7 +642,9 @@ function LaunchWindowContent() {
 												? finalizingControls
 												: recording
 													? recordingControls
-													: idleControls}
+													: showLaunchHome
+														? homeControls
+														: idleControls}
 										</motion.div>
 									</AnimatePresence>
 								</div>

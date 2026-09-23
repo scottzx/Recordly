@@ -181,15 +181,17 @@ export function useAutoCaptionController({
 				setVideoSourcePath(sourcePath);
 				setVideoPath(await resolveVideoUrl(sourcePath));
 			}
-			if (!whisperModelPath) {
+			const engine = autoCaptionSettings.engine ?? "transcribe-kit";
+			if (engine === "whisper" && !whisperModelPath) {
 				toast.error("Select a Whisper model or download the small model first");
 				return;
 			}
 
 			const result = await window.electronAPI.generateAutoCaptions({
 				videoPath: sourcePath,
+				engine,
 				whisperExecutablePath: whisperExecutablePath ?? undefined,
-				whisperModelPath,
+				whisperModelPath: whisperModelPath ?? undefined,
 				language: autoCaptionSettings.language,
 			});
 			if (!result.success || !result.cues) {
@@ -209,6 +211,7 @@ export function useAutoCaptionController({
 			setIsGeneratingCaptions(false);
 		}
 	}, [
+		autoCaptionSettings.engine,
 		autoCaptionSettings.language,
 		isGeneratingCaptions,
 		setAutoCaptionSettings,

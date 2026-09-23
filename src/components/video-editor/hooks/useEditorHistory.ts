@@ -29,6 +29,8 @@ export function useEditorHistory({
 	nextAnnotationZIndexRef,
 }: Input) {
 	const {
+		composition,
+		setComposition,
 		zoomRegions,
 		clipRegions,
 		speedRegions,
@@ -64,6 +66,7 @@ export function useEditorHistory({
 	}, []);
 	const buildSnapshot = useCallback(
 		(): EditorHistorySnapshot => ({
+			composition,
 			zoomRegions,
 			clipRegions,
 			speedRegions,
@@ -76,6 +79,7 @@ export function useEditorHistory({
 			selectedAudioId,
 		}),
 		[
+			composition,
 			zoomRegions,
 			clipRegions,
 			speedRegions,
@@ -92,6 +96,7 @@ export function useEditorHistory({
 		(snapshot: EditorHistorySnapshot) => {
 			applyingRef.current = true;
 			const cloned = cloneStructured(snapshot);
+			setComposition(cloned.composition ?? null);
 			setZoomRegions(cloned.zoomRegions);
 			setClipRegions(cloned.clipRegions);
 			setSpeedRegions(cloned.speedRegions);
@@ -123,6 +128,7 @@ export function useEditorHistory({
 				1;
 		},
 		[
+			setComposition,
 			setZoomRegions,
 			setClipRegions,
 			setSpeedRegions,
