@@ -237,7 +237,9 @@ export default function Item({
 								<>
 									<Film className="w-3.5 h-3.5 shrink-0" />
 									<span className="text-[11px] font-semibold tracking-tight whitespace-nowrap">
-										Clip
+										{typeof children === "string" && children.startsWith("包装")
+											? children
+											: "Clip"}
 									</span>
 									{clipSpeedLabel && (
 										<span className="rounded-[4px] bg-black/10 px-1 text-[9px] font-bold tabular-nums text-black/65 dark:bg-white/15 dark:text-white/80">

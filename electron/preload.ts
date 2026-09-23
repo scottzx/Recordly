@@ -798,7 +798,11 @@ contextBridge.exposeInMainWorld("electronAPI", {
 	deleteRecordingFile: (filePath: string) => {
 		return ipcRenderer.invoke("delete-recording-file", filePath);
 	},
-	getLocalMediaUrl: (filePath: string) => {
+	compositionPickMedia: () => ipcRenderer.invoke("composition-pick-media"),
+ compositionProbe: (filePath: string) => ipcRenderer.invoke("composition-probe", filePath),
+ compositionAudio: (project: unknown, videoPath: string, range?: {fromMs:number;toMs:number}) => ipcRenderer.invoke("composition-audio", project, videoPath, range),
+ compositionCancel: () => ipcRenderer.invoke("composition-cancel"),
+ getLocalMediaUrl: (filePath: string) => {
 		return ipcRenderer.invoke("get-local-media-url", filePath) as Promise<
 			{ success: true; url: string } | { success: false }
 		>;

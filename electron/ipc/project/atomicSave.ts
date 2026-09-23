@@ -114,7 +114,16 @@ async function commitProjectFile(projectPath: string, contents: string): Promise
 	const existingMode = await getExistingFileMode(targetPath);
 
 	try {
-		await writeSyncedTemporaryFile(temporaryPath, contents, existingMode);
+		if (JSON.parse(contents).version === 3) {
+      try {
+        const previous = JSON.parse(await fs.readFile(targetPath, "utf8"));
+        if (previous.version < 3) await fs.copyFile(targetPath, `${targetPath}.v${previous.version}.bak`, fsConstants.COPYFILE_EXCL);
+      } catch (error) {
+        const code = (error as NodeJS.ErrnoException).code;
+        if (code !== "ENOENT" && code !== "EEXIST" && !(error instanceof SyntaxError)) throw error;
+      }
+    }
+    await writeSyncedTemporaryFile(temporaryPath, contents, existingMode);
 		await preservePreviousGeneration(targetPath, backupPath, backupTemporaryPath);
 		await fs.rename(temporaryPath, targetPath);
 		await syncParentDirectory(parentDir);

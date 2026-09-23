@@ -48,6 +48,7 @@
 		"checksums:release": "node scripts/write-release-checksums.mjs",
 		"release:create": "node scripts/create-release.mjs",
 		"test": "vitest --run",
+		"test:composition-export": "node scripts/test-composition-export.mjs",
 		"test:watch": "vitest"
 	},
 	"dependencies": {

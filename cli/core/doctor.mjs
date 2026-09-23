@@ -1,7 +1,8 @@
 import { execFileSync } from "node:child_process";
 import fs from "node:fs";
 import os from "node:os";
-import { getElectronBinaryPath, getFfmpegPath, getNativeBinaryPath } from "./paths.mjs";
+import path from "node:path";
+import { getElectronBinaryPath, getFfmpegPath, getNativeBinaryPath, getFfprobePath, repoRoot } from "./paths.mjs";
 
 export function checkDoctor() {
 	const checks = {
@@ -60,6 +61,7 @@ print("\\(screen),\\(ax)")
 		};
 		checks.permissions.ok = screenOk; // Accessibility is optional/recommended for cursor clicks
 	} catch (e) {
+ checks.permissions.ok = false;
 		checks.permissions.details = {
 			checkError: e.message,
 		};
@@ -69,6 +71,9 @@ print("\\(screen),\\(ax)")
 
 	return {
 		healthy: allOk,
+        recordingReady: allOk,
+        exportReady: [getElectronBinaryPath(), getFfmpegPath(), getFfprobePath(), path.join(repoRoot, "dist", "index.html"), path.join(repoRoot, "dist-electron", "main.cjs")].every(p => p && fs.existsSync(p)),
+        exportRequirements: {recordingPermissionsRequired:false, builtRenderer:fs.existsSync(path.join(repoRoot,"dist","index.html"))},
 		checks,
 	};
 }

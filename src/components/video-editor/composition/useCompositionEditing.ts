@@ -1,0 +1,156 @@
+import { createContext, useContext, useMemo } from "react";
+import { toast } from "sonner";
+import {
+	applyOperation,
+	migrateProject,
+	timeline as entries,
+	validateComposition,
+	type CompositionProject,
+	type Operation,
+	type Shot,
+	type BRoll,
+} from "../../../../shared/composition";
+import { createProjectData, type ProjectEditorState } from "../projectPersistence";
+import type { useTimelineState } from "../state/useTimelineState";
+import type { EditorEffectSection } from "../types";
+import type { Span } from "dnd-timeline";
+
+export function useCompositionEditing({
+	state,
+	editor,
+	source,
+	duration,
+	time,
+	setSection,
+}: {
+	state: ReturnType<typeof useTimelineState>;
+	editor: Partial<ProjectEditorState>;
+	source: string | null;
+	duration: number;
+	time: number;
+	setSection: (section: EditorEffectSection) => void;
+}) {
+	const project = useMemo(
+		() => (source ? createProjectData(source, editor) : null),
+		[source, editor],
+	);
+	const composed = project?.composition ? (project as CompositionProject) : null;
+	const commit = (next: CompositionProject) => {
+		const errors = validateComposition(next);
+		if (errors.length) {
+			toast.error(errors.join("\n"));
+			return false;
+		}
+		state.setComposition(next.composition);
+		return true;
+	};
+	const operation = (op: Operation) => {
+		if (!composed) return;
+		try {
+			const next = structuredClone(composed);
+			if (op.type === "remove" && next.composition.broll.some((b) => b.id === op.id))
+				next.composition.broll = next.composition.broll.filter((b) => b.id !== op.id);
+			else next.composition = applyOperation(next.composition, op);
+			commit(next);
+		} catch (e) {
+			toast.error(String(e));
+		}
+	};
+	const select = (id: string | null) => {
+		state.setSelectedClipId(id);
+		state.setSelectedAnnotationId(null);
+		state.setSelectedZoomId(null);
+		state.setSelectedAudioId(null);
+		state.setSelectedCaptionId(null);
+		setSection("composition");
+	};
+	const changeShot = (shot: Shot) =>
+		composed &&
+		commit({
+			...composed,
+			composition: {
+				...composed.composition,
+				shots: composed.composition.shots.map((s) => (s.id === shot.id ? shot : s)),
+			},
+		});
+	const changeBroll = (b: BRoll) =>
+		composed &&
+		commit({
+			...composed,
+			composition: {
+				...composed.composition,
+				broll: composed.composition.broll.map((s) => (s.id === b.id ? b : s)),
+			},
+		});
+	const span = (id: string, span: Span) => {
+		if (!composed) return;
+		const all = entries(composed.composition),
+			entry = all.find((e) => e.shot.id === id);
+		if (!entry) return;
+		const delta = span.start - entry.startMs,
+			endDelta = span.end - entry.endMs;
+		if (Math.abs(delta - endDelta) < 1) {
+			operation({
+				type: "move",
+				id,
+				index: all.filter((e) => e.shot.id !== id && e.startMs < span.start).length,
+			});
+			return;
+		}
+		const shot = entry.shot;
+		if (shot.kind === "card") changeShot({ ...shot, durationMs: span.end - span.start });
+		else
+			operation({
+				type: "trim",
+				clipId: id,
+				sourceStartMs: shot.sourceStartMs + delta * shot.speed,
+				sourceEndMs: shot.sourceEndMs + endDelta * shot.speed,
+			});
+	};
+	const split = (at: number) => {
+		if (!composed) return;
+		const e = entries(composed.composition).find(
+			(e) => e.shot.kind === "main" && at > e.startMs && at < e.endMs,
+		);
+		if (e) operation({ type: "split", clipId: e.shot.id, offsetMs: at - e.startMs });
+	};
+	return {
+		project: composed,
+		selected: state.selectedClipId,
+		time: time * 1000,
+		commit,
+		operation,
+		select,
+		changeShot,
+		changeBroll,
+		span,
+		split,
+		enable: async () => {
+			if (!project || duration <= 0) return;
+			try {
+				const next = migrateProject(project, duration * 1000);
+				const info = await window.electronAPI.compositionProbe(project.videoPath);
+				const scale = Math.min(
+					1,
+					1920 / (info.width || 1920),
+					1080 / (info.height || 1080),
+				);
+				next.composition.width = Math.round(((info.width || 1920) * scale) / 2) * 2;
+				next.composition.height = Math.round(((info.height || 1080) * scale) / 2) * 2;
+				if (commit(next)) {
+					state.setZoomRegions(next.editor.zoomRegions ?? []);
+					state.setAnnotationRegions(next.editor.annotationRegions ?? []);
+					select(next.composition.shots[0]?.id ?? null);
+				}
+			} catch (e) {
+				toast.error(String(e));
+			}
+		},
+	};
+}
+export const CompositionEditingContext = createContext<ReturnType<
+	typeof useCompositionEditing
+> | null>(null);
+export function useCompositionContext() {
+	return useContext(CompositionEditingContext);
+}

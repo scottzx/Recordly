@@ -20,6 +20,7 @@ import type { TimelineRenderItem } from "../core/timelineTypes";
 import { buildAllRegionSpans, buildTimelineItems, resolveDropRowId } from "../model/timelineModel";
 
 interface UseTimelineDndBindingsParams {
+	sequenceMode?: boolean;
 	zoomRegions: ZoomRegion[];
 	trimRegions: TrimRegion[];
 	clipRegions: ClipRegion[];
@@ -47,6 +48,7 @@ type TimelineItemKind =
 	| null;
 
 export function useTimelineDndBindings({
+	sequenceMode = false,
 	zoomRegions,
 	trimRegions,
 	clipRegions,
@@ -113,7 +115,7 @@ export function useTimelineDndBindings({
 
 			if (itemKind === "zoom") return checkOverlap(zoomRegions);
 			if (itemKind === "trim") return checkOverlap(trimRegions);
-			if (itemKind === "clip") return checkOverlap(clipRegions);
+			if (itemKind === "clip") return sequenceMode ? false : checkOverlap(clipRegions);
 			if (itemKind === "speed") return checkOverlap(speedRegions);
 			// Captions share a single lane and must never overlap, so validate a dragged or
 			// resized caption against the other cues just like the other timeline items.
@@ -129,6 +131,7 @@ export function useTimelineDndBindings({
 			return false;
 		},
 		[
+			sequenceMode,
 			resolveItemKind,
 			resolveTrackIndex,
 			zoomRegions,

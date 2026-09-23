@@ -1,3 +1,5 @@
+import { CompositionPreview } from "../composition/CompositionPreview";
+import { useCompositionContext } from "../composition/useCompositionEditing";
 import type { ComponentProps, Dispatch, RefObject, SetStateAction } from "react";
 import type { AspectRatio } from "@/utils/aspectRatioUtils";
 import type { useVideoEditorAudio } from "../audio/useVideoEditorAudio";
@@ -62,6 +64,24 @@ export function EditorVideoPreview({
 	setError,
 	handlers,
 }: Props) {
+	const composition = useCompositionContext();
+	if (composition?.project)
+		return (
+			<CompositionPreview
+				ref={playbackRef}
+				project={composition.project}
+				videoPath={videoPath || ""}
+				time={currentTime}
+				playing={isPlaying}
+				volume={previewVolume}
+				suspended={suspendRendering}
+				onTime={setCurrentTime}
+				onPlaying={setIsPlaying}
+				onDuration={setDuration}
+				onReady={setIsPreviewReady}
+				onError={setError}
+			/>
+		);
 	return (
 		<VideoPlayback
 			clipRegions={timeline.clipRegions}

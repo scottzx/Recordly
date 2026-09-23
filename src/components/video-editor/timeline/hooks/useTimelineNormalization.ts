@@ -3,6 +3,7 @@ import { normalizeRegionSpan } from "../core/spans";
 import type { AudioRegion, SpeedRegion, TrimRegion, ZoomRegion } from "../../types";
 
 interface UseTimelineNormalizationParams {
+	disabled?: boolean;
 	totalMs: number;
 	safeMinDurationMs: number;
 	zoomRegions: ZoomRegion[];
@@ -16,6 +17,7 @@ interface UseTimelineNormalizationParams {
 }
 
 export function useTimelineNormalization({
+	disabled = false,
 	totalMs,
 	safeMinDurationMs,
 	zoomRegions,
@@ -28,7 +30,7 @@ export function useTimelineNormalization({
 	onAudioSpanChange,
 }: UseTimelineNormalizationParams) {
 	useEffect(() => {
-		if (totalMs === 0 || safeMinDurationMs <= 0) {
+		if (disabled || totalMs === 0 || safeMinDurationMs <= 0) {
 			return;
 		}
 
@@ -84,6 +86,7 @@ export function useTimelineNormalization({
 			}
 		});
 	}, [
+		disabled,
 		totalMs,
 		safeMinDurationMs,
 		zoomRegions,

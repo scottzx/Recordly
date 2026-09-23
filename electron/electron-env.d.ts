@@ -831,7 +831,11 @@ interface Window {
 			}>;
 			error?: string;
 		}>;
-		openProjectFileAtPath: (filePath: string) => Promise<{
+		compositionPickMedia: () => Promise<{path:string;durationMs:number;width:number;height:number;hasAudio:boolean}|null>;
+ compositionProbe: (filePath: string) => Promise<{durationMs:number;width:number;height:number;hasAudio:boolean}>;
+ compositionAudio: (project: unknown, videoPath:string, range?:{fromMs:number;toMs:number}) => Promise<{success:boolean;tempPath:string;hasAudio:boolean}>;
+ compositionCancel: () => Promise<void>;
+ openProjectFileAtPath: (filePath: string) => Promise<{
 			success: boolean;
 			path?: string;
 			project?: unknown;

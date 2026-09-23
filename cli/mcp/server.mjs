@@ -1,3 +1,4 @@
+import { projectCommand } from "../core/compositionProject.mjs";
 import readline from "node:readline";
 import path from "node:path";
 import { startRecording, stopRecording, markAction } from "../core/capture.mjs";
@@ -7,6 +8,11 @@ import { buildProjectFile } from "../core/projectBuilder.mjs";
 import { listSources, listWindows } from "../core/sources.mjs";
 
 const TOOLS = [
+ ...["inspect", "apply", "validate", "preview"].map(action => ({
+ name: `recordly_project_${action}`,
+ description: `Composition project ${action}. All timestamps are milliseconds. Uses the same schema as recordly project.`,
+ inputSchema: {type:"object",properties:{inputPath:{type:"string"},output:{type:"string"},planData:{type:"object",description:"EditPlan v1: composition, editor, operations"},at:{type:"number"},from:{type:"number"},to:{type:"number"}},required:["inputPath"]}
+ })),
 	{
 		name: "recordly_doctor",
 		description: "Check system permissions (screen recording, accessibility) and native runtime health for Recordly.",
@@ -224,7 +230,9 @@ export async function runMcpServer() {
 			try {
 				let resultData = null;
 
-				if (name === "recordly_doctor") {
+				if (name.startsWith("recordly_project_")) {
+ resultData = await projectCommand(name.slice("recordly_project_".length), args.inputPath, args);
+ } else if (name === "recordly_doctor") {
 					resultData = checkDoctor();
 				} else if (name === "recordly_list_sources") {
 					resultData = await listSources();

@@ -32,6 +32,7 @@ import {
 } from "./sourceAudioTracks";
 
 export interface TimelineEditorProps {
+	sequenceMode?: boolean;
 	videoDuration: number;
 	currentTime: number;
 	playheadTime?: number;
@@ -115,6 +116,7 @@ export interface TimelineEditorHandle {
 const TimelineEditor = forwardRef<TimelineEditorHandle, TimelineEditorProps>(
 	function TimelineEditor(
 		{
+			sequenceMode = false,
 			videoDuration,
 			currentTime,
 			playheadTime,
@@ -353,6 +355,7 @@ const TimelineEditor = forwardRef<TimelineEditorHandle, TimelineEditorProps>(
 			addCaptionAtMs,
 			resolveCaptionSpanAtMs,
 		} = useTimelineEditorRuntime({
+			sequenceMode,
 			ref,
 			videoDuration,
 			totalMs,

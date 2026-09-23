@@ -1,3 +1,12 @@
+import { useMemo } from "react";
+import { useCompositionContext } from "../composition/useCompositionEditing";
+import {
+	brollTimelineRegions,
+	projectSourceRegions,
+	sourceRegionSpan,
+	sourceSpanAtOutput,
+} from "../composition/timelineProjection";
+import { timeline as compositionEntries } from "../../../../shared/composition";
 import type { RefObject } from "react";
 import type { useVideoEditorAudio } from "../audio/useVideoEditorAudio";
 import { retimeCaptionFragment } from "../captionTimeline";
@@ -56,9 +65,26 @@ export function EditorTimelinePanel(props: Props) {
 		handleSelectAnnotation,
 	} = props;
 
+	const composition = useCompositionContext();
+	const c = timeline.composition;
+	const visualAnnotations = useMemo(
+		() =>
+			c
+				? [
+						...brollTimelineRegions(c),
+						...projectSourceRegions(timeline.annotationRegions, c),
+					]
+				: timeline.annotationRegions,
+		[c, timeline.annotationRegions],
+	);
+	const visualZooms = useMemo(
+		() => (c ? projectSourceRegions(timeline.zoomRegions, c) : timeline.zoomRegions),
+		[c, timeline.zoomRegions],
+	);
 	return (
-		<div className="flex flex-shrink-0 flex-col" style={{ height: "15%", minHeight: 160 }}>
+		<div className="flex flex-shrink-0 flex-col" style={{ height: "25%", minHeight: 240 }}>
 			<TimelineEditor
+				sequenceMode={Boolean(c)}
 				ref={timelineRef}
 				videoDuration={projection.timelineDuration}
 				currentTime={currentTime}
@@ -70,17 +96,39 @@ export function EditorTimelinePanel(props: Props) {
 				cursorTelemetry={normalizedCursorTelemetry}
 				autoSuggestZoomsTrigger={autoSuggestZoomsTrigger}
 				onAutoSuggestZoomsConsumed={handleAutoSuggestZoomsConsumed}
-				disableSuggestedZooms={disableSuggestedZooms}
-				zoomRegions={timeline.zoomRegions}
-				onZoomAdded={zoomCommands.handleZoomAdded}
-				onZoomSuggested={zoomCommands.handleZoomSuggested}
-				onZoomSpanChange={zoomCommands.handleZoomSpanChange}
-				onZoomDelete={zoomCommands.handleZoomDelete}
-				selectedZoomId={timeline.selectedZoomId}
-				onSelectZoom={zoomCommands.handleSelectZoom}
+				disableSuggestedZooms={Boolean(c) || disableSuggestedZooms}
+				zoomRegions={visualZooms}
+				onZoomAdded={(span) => {
+					const mapped = c ? sourceSpanAtOutput(span, c) : span;
+					if (mapped) zoomCommands.handleZoomAdded(mapped);
+				}}
+				onZoomSuggested={(span, focus) => {
+					const mapped = c ? sourceSpanAtOutput(span, c) : span;
+					if (mapped) zoomCommands.handleZoomSuggested(mapped, focus);
+				}}
+				onZoomSpanChange={(id, span) => {
+					if (c) {
+						const mapped = sourceRegionSpan(id, span, c);
+						if (mapped) zoomCommands.handleZoomSpanChange(mapped.id, mapped.span);
+					} else zoomCommands.handleZoomSpanChange(id, span);
+				}}
+				onZoomDelete={(id) =>
+					zoomCommands.handleZoomDelete(c ? id.slice(0, id.lastIndexOf("::")) : id)
+				}
+				selectedZoomId={
+					visualZooms.find((z) =>
+						c
+							? z.id.startsWith(`${timeline.selectedZoomId}::`)
+							: z.id === timeline.selectedZoomId,
+					)?.id ?? null
+				}
+				onSelectZoom={(id) =>
+					zoomCommands.handleSelectZoom(c && id ? id.slice(0, id.lastIndexOf("::")) : id)
+				}
 				trimRegions={timeline.trimRegions}
-				clipRegions={timeline.clipRegions}
+				clipRegions={projection.clipRegions}
 				onClipSplit={clipCommands.handleClipSplit}
+				onClipDelete={clipCommands.handleClipDelete}
 				onClipSpanChange={clipCommands.handleClipSpanChange}
 				selectedClipId={timeline.selectedClipId}
 				onSelectClip={clipCommands.handleSelectClip}
@@ -125,12 +173,60 @@ export function EditorTimelinePanel(props: Props) {
 				onCaptionAdded={captionCommands.handleCaptionAdded}
 				captionsEnabled={timeline.autoCaptionSettings.enabled}
 				captionQuickAddEnabled={timeline.autoCaptionSettings.timelineQuickAdd}
-				annotationRegions={timeline.annotationRegions}
-				onAnnotationAdded={annotationCommands.handleAnnotationAdded}
-				onAnnotationSpanChange={annotationCommands.handleAnnotationSpanChange}
-				onAnnotationDelete={annotationCommands.handleAnnotationDelete}
-				selectedAnnotationId={timeline.selectedAnnotationId}
-				onSelectAnnotation={handleSelectAnnotation}
+				annotationRegions={visualAnnotations}
+				onAnnotationAdded={(span, track) => {
+					const mapped = c ? sourceSpanAtOutput(span, c) : span;
+					if (mapped)
+						annotationCommands.handleAnnotationAdded(mapped, c ? (track ?? 0) : track);
+				}}
+				onAnnotationSpanChange={(id, span, track) => {
+					const b = c?.broll.find((b) => b.id === id);
+					if (b && c && composition) {
+						const entry = compositionEntries(c).find((e) => e.shot.id === b.clipId)!;
+						const offset = span.start - entry.startMs;
+						const oldStart = entry.startMs + b.offsetMs;
+						const moving = Math.abs(span.end - span.start - b.durationMs) < 1;
+						composition.changeBroll({
+							...b,
+							offsetMs: offset,
+							durationMs: span.end - span.start,
+							sourceStartMs:
+								b.sourceStartMs + (moving ? 0 : (span.start - oldStart) * b.speed),
+						});
+					} else if (c) {
+						const mapped = sourceRegionSpan(id, span, c);
+						if (mapped)
+							annotationCommands.handleAnnotationSpanChange(
+								mapped.id,
+								mapped.span,
+								track ?? 0,
+							);
+					} else annotationCommands.handleAnnotationSpanChange(id, span, track);
+				}}
+				onAnnotationDelete={(id) => {
+					if (c?.broll.some((b) => b.id === id) && composition?.project)
+						composition.commit({
+							...composition.project,
+							composition: { ...c, broll: c.broll.filter((b) => b.id !== id) },
+						});
+					else
+						annotationCommands.handleAnnotationDelete(
+							c ? id.slice(0, id.lastIndexOf("::")) : id,
+						);
+				}}
+				selectedAnnotationId={
+					c?.broll.some((b) => b.id === timeline.selectedClipId)
+						? timeline.selectedClipId
+						: (visualAnnotations.find((a) =>
+								c
+									? a.id.startsWith(`${timeline.selectedAnnotationId}::`)
+									: a.id === timeline.selectedAnnotationId,
+							)?.id ?? null)
+				}
+				onSelectAnnotation={(id) => {
+					if (c?.broll.some((b) => b.id === id)) composition?.select(id);
+					else handleSelectAnnotation(c && id ? id.slice(0, id.lastIndexOf("::")) : id);
+				}}
 				showSourceAudioTrack={timeline.clipRegions.some((clip) => clip.showSourceAudio)}
 				sourceAudioResourceVersion={timeline.sourceAudioFallbackRefreshKey}
 				sourceAudioTrackSettings={audio.activeSourceAudioTrackSettings}

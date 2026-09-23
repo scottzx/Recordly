@@ -6,6 +6,7 @@ import { runSources } from "../commands/sources.mjs";
 import { runRecord } from "../commands/record.mjs";
 import { runMark } from "../commands/mark.mjs";
 import { runRender } from "../commands/render.mjs";
+import { projectCommand } from "../core/compositionProject.mjs";
 import { runMcpServer } from "../mcp/server.mjs";
 
 const argv = process.argv.slice(2);
@@ -18,6 +19,7 @@ USAGE:
   recordly <command> [subcommand] [options]
 
 COMMANDS:
+  project <inspect|apply|validate|preview> <file>  Inspect/edit composition projects
   doctor                     Run system permission and runtime diagnostics
   sources [list]             List available displays and open application windows
   record start [options]     Start background screen/window recording session
@@ -92,6 +94,7 @@ async function main() {
 		args: argv.slice(1),
 		options: {
 			json: { type: "boolean", default: false },
+            plan: { type: "string" }, at: { type: "string" }, from: { type: "string" }, to: { type: "string" },
 			window: { type: "string" },
 			display: { type: "string" },
 			mic: { type: "boolean", default: false },
@@ -123,6 +126,12 @@ async function main() {
 	});
 
 	switch (command) {
+ case "project": {
+ const result = await projectCommand(positionals[0], positionals[1], values);
+ console.log(JSON.stringify(result,null,2));
+ if (result.valid === false) process.exitCode = 1;
+ break;
+ }
 		case "doctor":
 			await runDoctor(values);
 			break;

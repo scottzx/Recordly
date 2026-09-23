@@ -59,6 +59,7 @@ function getEditorWindowQuery(): Record<string, string> {
 
 	if (process.env.RECORDLY_SMOKE_EXPORT === "1") {
 		query.smokeExport = "1";
+        if (process.env.RECORDLY_COMPOSITION_RANGE) query.compositionRange = process.env.RECORDLY_COMPOSITION_RANGE;
 		if (process.env.RECORDLY_SMOKE_EXPORT_INPUT) {
 			query.smokeInput = process.env.RECORDLY_SMOKE_EXPORT_INPUT;
 		}

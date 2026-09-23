@@ -107,6 +107,7 @@ export function normalizeCursorClickEffectColor(
 }
 
 export type EditorEffectSection =
+	| "composition"
 	| "scene"
 	| "cursor"
 	| "captions"
@@ -225,6 +226,9 @@ export interface TrimRegion {
 }
 
 export interface ClipRegion {
+	/** View-only classification for the composition timeline. */
+	timelineRole?: "aroll" | "packaging";
+	displayLabel?: string;
 	id: string;
 	/** Where the clip sits on the timeline. */
 	startMs: number;
@@ -470,6 +474,8 @@ export function getDefaultCaptionFontFamily() {
 }
 
 export interface AnnotationRegion {
+	/** View-only classification for the dedicated auxiliary media lane. */
+	timelineRole?: "broll";
 	id: string;
 	startMs: number;
 	endMs: number;

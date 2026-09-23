@@ -76,6 +76,16 @@ export function useInitialEditorSource({
 
 				if (!smokeConfig.enabled && devConfig.inputPath) {
 					const sourcePath = fromFileUrl(devConfig.inputPath);
+					if (sourcePath.toLowerCase().endsWith(".recordly")) {
+						const result = await window.electronAPI.openProjectFileAtPath(sourcePath);
+						if (
+							!result.success ||
+							!(await applyLoadedProject(result.project, result.path ?? sourcePath))
+						)
+							throw new Error("Unable to open project");
+						return;
+					}
+
 					const webcamPath = devConfig.webcamInputPath
 						? fromFileUrl(devConfig.webcamInputPath)
 						: null;

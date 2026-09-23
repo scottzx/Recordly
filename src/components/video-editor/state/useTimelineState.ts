@@ -14,6 +14,9 @@ import type {
 import { DEFAULT_AUTO_CAPTION_SETTINGS } from "../types";
 
 export function useTimelineState() {
+	const [composition, setComposition] = useState<
+		import("../../../../shared/composition").Composition | null
+	>(null);
 	const [zoomRegions, setZoomRegions] = useState<ZoomRegion[]>([]);
 	const [cursorTelemetry, setCursorTelemetry] = useState<CursorTelemetryPoint[]>([]);
 	const [cursorTelemetrySourcePath, setCursorTelemetrySourcePath] = useState<string | null>(null);
@@ -40,6 +43,8 @@ export function useTimelineState() {
 	);
 
 	return {
+		composition,
+		setComposition,
 		zoomRegions,
 		setZoomRegions,
 		cursorTelemetry,

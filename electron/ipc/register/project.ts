@@ -1,3 +1,4 @@
+import { registerCompositionHandlers } from "./composition";
 import { randomUUID } from "node:crypto";
 import { constants as fsConstants } from "node:fs";
 import fs from "node:fs/promises";
@@ -213,6 +214,7 @@ async function ensureNamedProjectSaveDoesNotOverwriteDifferentProject(
 }
 
 export function registerProjectHandlers() {
+ registerCompositionHandlers();
 	setCurrentProjectPathListener((projectPath) => {
 		void (projectPath ? syncProjectFileWatch(projectPath) : stopProjectFileWatch());
 	});

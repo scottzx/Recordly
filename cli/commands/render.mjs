@@ -1,3 +1,4 @@
+import { probeMedia, readProject, validateMedia } from "../core/compositionProject.mjs";
 import path from "node:path";
 import { renderProject } from "../core/headlessRenderer.mjs";
 import { buildProjectFile } from "../core/projectBuilder.mjs";
@@ -53,13 +54,19 @@ export async function runRender(targetPath, args = {}) {
 	}
 
 	try {
+        const loaded = await readProject(projectFile);
+        if (loaded.composition) {
+          const check = await validateMedia(loaded);
+          if (!check.valid) throw new Error(check.errors.join("\n"));
+        }
 		const result = await renderProject({
 			projectPath: projectFile,
 			outputPath: path.resolve(outputPath),
 			quality: args.quality || "good",
-			fps: args.fps ? Number.parseInt(args.fps, 10) : 60,
+			fps: args.fps ? Number.parseInt(args.fps, 10) : (loaded.composition?.fps ?? 60),
 			encodingMode: args.mode || "balanced",
-			onProgress: args.json
+			timeoutMs: 900000,
+            onProgress: args.json
 				? undefined
 				: (p) => {
 						if (p.text.includes("[smoke-export]")) {
@@ -68,7 +75,9 @@ export async function runRender(targetPath, args = {}) {
 					},
 		});
 
-		if (args.json) {
+		const media = await probeMedia(result.outputPath);
+        if (!media.hasVideo || !(media.durationMs > 0) || (result.report?.expectedAudio && !media.hasAudio)) throw new Error("Output media streams do not match the export report");
+        if (args.json) {
 			console.log(JSON.stringify(result, null, 2));
 		} else {
 			console.log(`\n✅ Render complete: ${result.outputPath}\n`);

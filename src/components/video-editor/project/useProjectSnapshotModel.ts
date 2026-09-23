@@ -74,6 +74,7 @@ export function useProjectSnapshotModel({
 	const currentPersistedEditorState = useMemo(
 		() =>
 			buildPersistedEditorState({
+				composition: timeline.composition ?? undefined,
 				wallpaper: appearance.wallpaper,
 				shadowIntensity: appearance.shadowIntensity,
 				backgroundBlur: appearance.backgroundBlur,
@@ -176,6 +177,7 @@ export function useProjectSnapshotModel({
 			appearance.padding,
 			appearance.cropRegion,
 			appearance.webcam,
+			timeline.composition,
 			timeline.zoomRegions,
 			timeline.trimRegions,
 			timeline.clipRegions,
