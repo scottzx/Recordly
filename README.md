@@ -11,6 +11,8 @@ Language: EN | [简中](README.zh-CN.md)
 
 ## About this fork
 
+Independent releases start at **2.0.0**: [changelog](CHANGELOG.md) · [versioning and release workflow](docs/versioning.md). Bundled release history is available offline from the home screen and Help menu.
+
 This repository is [scottzx/Recordly](https://github.com/scottzx/Recordly), a fork of [webadderallorg/Recordly](https://github.com/webadderallorg/Recordly). It builds on the upstream recorder and editor with a focus on **narrated screen recordings, three-track composition, captions, and CLI-driven editing**. The upstream project and contributors retain their credit; the AGPL-3.0 license remains unchanged.
 
 ### What this fork adds

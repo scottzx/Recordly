@@ -3,16 +3,16 @@
 	"productName": "Recordly",
 	"description": "A free, creator-focused screen recorder with auto-zoom, cursor effects, backgrounds, annotations, and more - built for polished videos out of the box.",
 	"author": "webadderall",
-	"homepage": "https://github.com/webadderallorg/Recordly",
+	"homepage": "https://github.com/scottzx/Recordly",
 	"repository": {
 		"type": "git",
-		"url": "https://github.com/webadderallorg/Recordly.git"
+		"url": "https://github.com/scottzx/Recordly.git"
 	},
 	"bugs": {
-		"url": "https://github.com/webadderallorg/Recordly/issues"
+		"url": "https://github.com/scottzx/Recordly/issues"
 	},
 	"private": true,
-	"version": "1.5.0-beta.1",
+	"version": "2.0.0",
 	"type": "module",
 	"bin": {
 		"recordly": "./cli/bin/recordly.mjs"
@@ -52,7 +52,10 @@
 		"release:create": "node scripts/create-release.mjs",
 		"test": "vitest --run",
 		"test:composition-export": "node scripts/test-composition-export.mjs",
-		"test:watch": "vitest"
+		"test:library-export": "node scripts/test-library-export.mjs",
+		"test:watch": "vitest",
+		"version:sync": "node scripts/sync-version.mjs",
+		"version:check": "node scripts/sync-version.mjs --check"
 	},
 	"dependencies": {
 		"@phosphor-icons/react": "^2.1.10",

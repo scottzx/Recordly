@@ -4,6 +4,7 @@ import { audioSegments, durationMs, type CompositionProject } from "../../../../
 import { resolveVideoUrl } from "../projectPersistence";
 import type { VideoPlaybackRef } from "../VideoPlayback";
 import "./composition.css";
+import { shouldSeekAudio } from "./audioSync";
 
 type Props = {
 	project: CompositionProject;
@@ -34,6 +35,9 @@ export const CompositionPreview = forwardRef<VideoPlaybackRef, Props>((props, re
 				element: HTMLAudioElement;
 				segment: ReturnType<typeof audioSegments>[number];
 				gain: GainNode;
+				lastSeek: number;
+				active: boolean;
+				playPending: boolean;
 			}[]
 		>([]),
 		audioContext = useRef<AudioContext | null>(null);
@@ -46,23 +50,36 @@ export const CompositionPreview = forwardRef<VideoPlaybackRef, Props>((props, re
 		await renderer.current?.render(
 			Math.min(
 				Math.max(0, position.current * 1000),
-				durationMs(latest.current.project.composition) - 0.001,
+				Math.max(0, durationMs(latest.current.project.composition) - 0.001),
 			),
 		);
 	}, []);
-	const syncAudio = useCallback(() => {
+	const syncAudio = useCallback((force = false) => {
 		const at = position.current * 1000;
-		for (const { element, segment: s, gain } of tracks.current) {
+		for (const track of tracks.current) {
+			const { element, segment: s, gain } = track;
 			const active = playState.current && at >= s.startMs && at < s.startMs + s.durationMs;
 			if (!active) {
 				element.pause();
+				track.active = false;
 				continue;
 			}
 			const source = (s.sourceStartMs + (at - s.startMs) * s.speed) / 1000;
-			if (Math.abs(element.currentTime - source) > 0.15) element.currentTime = source;
+			const now = performance.now();
+			if (shouldSeekAudio(element, source, now, track.lastSeek, force || !track.active)) {
+				element.currentTime = source;
+				track.lastSeek = now;
+			}
+			track.active = true;
 			element.playbackRate = s.speed;
 			gain.gain.value = s.volume * latest.current.volume;
-			if (element.paused) void element.play().catch(() => undefined);
+			if (element.paused && !track.playPending) {
+				track.playPending = true;
+				void element.play().catch((error) => {
+					if (error?.name !== "AbortError" && playState.current)
+						latest.current.onError(`Audio playback failed: ${String(error)}`);
+				}).finally(() => { track.playPending = false; });
+			}
 		}
 	}, []);
 	useImperativeHandle(
@@ -85,7 +102,7 @@ export const CompositionPreview = forwardRef<VideoPlaybackRef, Props>((props, re
 				);
 				anchor.current = { at: performance.now(), time: position.current };
 				latest.current.onTime(position.current);
-				syncAudio();
+				syncAudio(true);
 				queue.current = queue.current.catch(() => undefined).then(paint);
 			},
 			async play() {
@@ -95,7 +112,7 @@ export const CompositionPreview = forwardRef<VideoPlaybackRef, Props>((props, re
 				playState.current = true;
 				anchor.current = { at: performance.now(), time: position.current };
 				latest.current.onPlaying(true);
-				syncAudio();
+				syncAudio(true);
 			},
 			pause: stop,
 			refreshFrame: paint,
@@ -108,7 +125,11 @@ export const CompositionPreview = forwardRef<VideoPlaybackRef, Props>((props, re
 	useEffect(() => {
 		let disposed = false;
 		const instance = new CompositionRenderer(props.project);
-		position.current = latest.current.time;
+		position.current = Math.min(
+			latest.current.time,
+			durationMs(props.project.composition) / 1000,
+		);
+		latest.current.onDuration(durationMs(props.project.composition) / 1000);
 		latest.current.onReady(false);
 		stop();
 		queue.current = queue.current
@@ -152,15 +173,16 @@ export const CompositionPreview = forwardRef<VideoPlaybackRef, Props>((props, re
 				if (!hasAudio.get(segment.path)) continue;
 				const url = await resolveVideoUrl(segment.path);
 				if (disposed) return;
-				const element = new Audio(url);
+				const element = new Audio();
 				element.crossOrigin = "anonymous";
 				element.preload = "auto";
+				element.src = url;
 				const gain = context.createGain();
 				context
 					.createMediaElementSource(element)
 					.connect(gain)
 					.connect(context.destination);
-				owned.push({ element, segment, gain });
+				owned.push({ element, segment, gain, lastSeek: -Infinity, active: false, playPending: false });
 			}
 			if (!disposed) tracks.current = owned;
 		})().catch((e) => {
@@ -222,14 +244,12 @@ export const CompositionPreview = forwardRef<VideoPlaybackRef, Props>((props, re
 			className="composition-preview relative flex h-full w-full items-center justify-center"
 		>
 			<div className="flex h-full w-full items-center justify-center" ref={canvasHost} />
-			<video
-				ref={video}
-				hidden
-				muted
-				preload="metadata"
-				src={props.videoPath}
-				onLoadedMetadata={(e) => props.onDuration(e.currentTarget.duration)}
-			/>
+			{!props.project.composition.shots.length && (
+				<div className="absolute text-center text-sm text-white/60">
+					从左侧素材库拖入录制，开始剪辑
+				</div>
+			)}
+			<video ref={video} hidden muted preload="metadata" src={props.videoPath || undefined} />
 		</div>
 	);
 });

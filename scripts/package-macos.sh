@@ -1,14 +1,16 @@
 #!/bin/bash
 set -euo pipefail
 
-if [[ "${1:-}" == "--help" ]]; then
+if [[ $# -eq 1 && "$1" == "--help" ]]; then
   cat <<'HELP'
-Usage: npm run package:mac
+Usage: npm run package:mac [-- --release]
 
-Build, sign, and verify a DMG for the current Mac's architecture.
-Requires npm dependencies, Xcode command line tools, and a Developer ID certificate.
+Default: build a locally ad-hoc signed .app for quick testing (no ZIP or DMG).
+--release: build, Developer ID sign, and verify ZIP/DMG distribution artifacts.
+Requires npm dependencies and Xcode command line tools.
+Release mode additionally requires a Developer ID certificate.
 
-Optional environment variables:
+Optional environment variables (release mode only):
   MAC_SIGN_IDENTITY  Full Developer ID Application certificate name.
                     Automatically selected when exactly one certificate is available.
   NOTARY_PROFILE    Existing notarytool keychain profile; enables Apple notarization.
@@ -17,14 +19,20 @@ Artifacts are saved in a unique directory under release/.
 HELP
   exit 0
 fi
-if [[ $# -ne 0 ]]; then
+mode=fast
+if [[ $# -eq 1 && "$1" == "--release" ]]; then
+  mode=release
+elif [[ $# -ne 0 ]]; then
   echo "Unknown arguments. Use --help for usage." >&2
   exit 1
 fi
 
 cd "$(dirname "$0")/.."
+npm run version:check
 [[ "$(uname -s)" == Darwin ]] || { echo "This workflow requires macOS." >&2; exit 1; }
-for tool in node npm security codesign hdiutil ditto xcrun; do
+required_tools=(node npm codesign xcrun)
+if [[ "$mode" == release ]]; then required_tools+=(security hdiutil ditto); fi
+for tool in "${required_tools[@]}"; do
   command -v "$tool" >/dev/null || { echo "Missing tool: $tool" >&2; exit 1; }
 done
 [[ -x node_modules/.bin/electron-builder ]] || { echo "Run npm ci first." >&2; exit 1; }
@@ -39,6 +47,26 @@ runtime="node_modules/electron/dist"
 electron_version="$(node -p 'require("./node_modules/electron/package.json").version')"
 [[ "$(cat "$runtime/version")" == "$electron_version" ]] || { echo "Electron runtime version mismatch; run npm ci." >&2; exit 1; }
 xcrun lipo "$runtime/Electron.app/Contents/MacOS/Electron" -verify_arch "$macho_arch"
+
+version="$(node -p 'require("./package.json").version')"
+if [[ "$mode" == fast ]]; then
+  mkdir -p release
+  output="$(mktemp -d "$PWD/release/macos-fast-${version}-${arch}-XXXXXX")"
+  echo "Fast local build $version ($arch): no Developer ID signing, notarization, ZIP or DMG"
+  CSC_IDENTITY_AUTO_DISCOVERY=false npm run build:mac -- dir "--$arch" --publish never \
+    "-c.electronDist=$runtime" -c.mac.identity=null -c.mac.notarize=false \
+    "-c.directories.output=$output"
+  app="$output/mac-$arch/Recordly.app"
+  if [[ "$arch" == x64 ]]; then app="$output/mac/Recordly.app"; fi
+  codesign --force --deep --sign - --timestamp=none "$app"
+  codesign --verify --deep --strict "$app"
+  node scripts/smoke-packaged-cli.mjs "$app"
+  cp release-notes.md "$output/release-notes.md"
+  printf 'Mode: fast (local testing only)\nVersion: %s\nArchitecture: %s\nSignature: ad-hoc, no timestamp\nVerification: application signature and installed CLI smoke tests passed\n' \
+    "$version" "$arch" > "$output/packaging-report.txt"
+  printf '\nLocal test app: %s\nFor distribution use: npm run package:mac -- --release\n' "$app"
+  exit 0
+fi
 
 identities="$(security find-identity -v -p codesigning | sed -n 's/.*"\(Developer ID Application: .*\)"/\1/p')"
 identity="${MAC_SIGN_IDENTITY:-}"
@@ -55,7 +83,6 @@ if [[ -n "${NOTARY_PROFILE:-}" ]]; then
   xcrun notarytool history --keychain-profile "$NOTARY_PROFILE" >/dev/null
 fi
 
-version="$(node -p 'require("./package.json").version')"
 mkdir -p release
 output="$(mktemp -d "$PWD/release/macos-${version}-${arch}-XXXXXX")"
 staging="$(mktemp -d "$output/staging-XXXXXX")"
@@ -69,11 +96,12 @@ cleanup() {
 trap cleanup EXIT
 
 echo "Building $version ($arch), signing with $identity"
-npm run build:mac -- --dir "--$arch" --publish never \
+npm run build:mac -- dir zip "--$arch" --publish never \
   "-c.electronDist=$runtime" "-c.mac.identity=${identity#Developer ID Application: }" \
   -c.mac.notarize=false "-c.directories.output=$output"
 app="$output/mac-$arch/Recordly.app"
 if [[ "$arch" == x64 ]]; then app="$output/mac/Recordly.app"; fi
+[[ -s "$app/Contents/Resources/app-update.yml" ]] || { echo "Packaged update configuration is missing." >&2; exit 1; }
 codesign --verify --deep --strict "$app"
 codesign --display --verbose=4 "$app"
 node scripts/smoke-packaged-cli.mjs "$app"
@@ -100,6 +128,7 @@ if [[ -n "${NOTARY_PROFILE:-}" ]]; then
   xcrun stapler validate "$dmg"
 fi
 codesign --verify --verbose=2 "$dmg"
+cp release-notes.md "$output/release-notes.md"
 hdiutil verify "$dmg"
 mkdir "$mountpoint"
 hdiutil attach -readonly -nobrowse -mountpoint "$mountpoint" "$dmg"

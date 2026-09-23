@@ -1,3 +1,5 @@
+import { LIBRARY_DRAG_TYPE } from "../../../../../../shared/mediaLibrary";
+import { useCompositionContext } from "../../../composition/useCompositionEditing";
 import { Plus } from "@phosphor-icons/react";
 import { useTimelineContext } from "dnd-timeline";
 import {
@@ -881,6 +883,8 @@ export default function TimelineCanvas({
 	isDragging = false,
 	isLoading = false,
 }: TimelineCanvasProps) {
+	const composition = useCompositionContext();
+	const [libraryDropMs, setLibraryDropMs] = useState<number | null>(null);
 	const { setTimelineRef, style, sidebarWidth, direction, range, valueToPixels, pixelsToValue } =
 		useTimelineContext();
 	const localTimelineRef = useRef<HTMLDivElement | null>(null);
@@ -1111,6 +1115,31 @@ export default function TimelineCanvas({
 	return (
 		<div
 			ref={setRefs}
+			onDragOver={(event) => {
+				if (!event.dataTransfer.types.includes(LIBRARY_DRAG_TYPE)) return;
+				event.preventDefault();
+				event.dataTransfer.dropEffect = "copy";
+				const at = getAbsoluteMsFromClientX(
+					event.clientX,
+					event.currentTarget.getBoundingClientRect(),
+				);
+				setLibraryDropMs(at);
+			}}
+			onDragLeave={(event) => {
+				if (!event.currentTarget.contains(event.relatedTarget as Node))
+					setLibraryDropMs(null);
+			}}
+			onDrop={(event) => {
+				const id = event.dataTransfer.getData(LIBRARY_DRAG_TYPE);
+				if (!id) return;
+				event.preventDefault();
+				const at = getAbsoluteMsFromClientX(
+					event.clientX,
+					event.currentTarget.getBoundingClientRect(),
+				);
+				setLibraryDropMs(null);
+				void composition?.insertRecording(id, at);
+			}}
 			style={{
 				...style,
 				height: `max(100%, ${timelineContentMinHeightPx}px, calc(${TIMELINE_AXIS_HEIGHT_PX}px + (100% - ${TIMELINE_AXIS_HEIGHT_PX}px) * ${timelineViewportStretchFactor}))`,
@@ -1122,6 +1151,16 @@ export default function TimelineCanvas({
 			onMouseMove={handleTimelineMouseMove}
 			onMouseLeave={handleTimelineMouseLeave}
 		>
+			{libraryDropMs !== null && (
+				<div
+					className="pointer-events-none absolute inset-y-0 z-[60] w-0.5 bg-blue-500"
+					style={{ left: sidebarWidth + valueToPixels(libraryDropMs - range.start) }}
+				>
+					<span className="absolute top-1 rounded bg-blue-600 px-2 py-1 text-xs whitespace-nowrap text-white">
+						插入素材
+					</span>
+				</div>
+			)}
 			<TimelineAxis videoDurationMs={videoDurationMs} currentTimeMs={currentTimeMs} />
 			<PlaybackCursor
 				currentTimeMs={currentTimeMs}

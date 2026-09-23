@@ -11,6 +11,7 @@ type ExportSettingsState = ReturnType<typeof useExportSettings>;
 
 type UseExportDialogActionsInput = {
 	videoPath: string | null;
+	compositionProject?: import("../../../../shared/composition").CompositionProject | null;
 	videoPlaybackRef: RefObject<VideoPlaybackRef | null>;
 	hasCaptionsForSidecar: boolean;
 	settings: ExportSettingsState;
@@ -21,6 +22,7 @@ type UseExportDialogActionsInput = {
 
 export function useExportDialogActions({
 	videoPath,
+	compositionProject,
 	videoPlaybackRef,
 	hasCaptionsForSidecar,
 	settings,
@@ -29,7 +31,7 @@ export function useExportDialogActions({
 	showExportSuccessToast,
 }: UseExportDialogActionsInput) {
 	const handleOpenExportDropdown = useCallback(() => {
-		if (!videoPath) {
+		if (!videoPath && !compositionProject?.composition.shots.length) {
 			toast.error("No video loaded");
 			return;
 		}
@@ -44,26 +46,26 @@ export function useExportDialogActions({
 		session.setShowExportDropdown(true);
 		session.setExportProgress(null);
 		session.setExportError(null);
-	}, [videoPath, session]);
+	}, [videoPath, compositionProject, session]);
 
 	const handleStartExportFromDropdown = useCallback(() => {
 		const video = videoPlaybackRef.current?.video;
-		if (!videoPath) {
+		if (!videoPath && !compositionProject?.composition.shots.length) {
 			toast.error("No video loaded");
 			return;
 		}
-		if (!video) {
+		if (!video && !compositionProject) {
 			toast.error("Video not ready");
 			return;
 		}
-		if (video.videoWidth <= 0 || video.videoHeight <= 0) {
+		if (!compositionProject && (!video || video.videoWidth <= 0 || video.videoHeight <= 0)) {
 			toast.error("Video metadata is still loading");
 			return;
 		}
 
 		const resolvedSettings = resolveExportStartSettings({
-			sourceWidth: video.videoWidth,
-			sourceHeight: video.videoHeight,
+			sourceWidth: compositionProject?.composition.width ?? video!.videoWidth,
+			sourceHeight: compositionProject?.composition.height ?? video!.videoHeight,
 			exportFormat: settings.exportFormat,
 			includeCaptionSidecar: hasCaptionsForSidecar && settings.includeCaptionSidecar,
 			exportEncodingMode: settings.exportEncodingMode,
@@ -80,7 +82,15 @@ export function useExportDialogActions({
 		session.setExportedFilePath(undefined);
 		session.setShowExportDropdown(true);
 		handleExport(resolvedSettings);
-	}, [videoPath, videoPlaybackRef, hasCaptionsForSidecar, settings, session, handleExport]);
+	}, [
+		videoPath,
+		compositionProject,
+		videoPlaybackRef,
+		hasCaptionsForSidecar,
+		settings,
+		session,
+		handleExport,
+	]);
 
 	const handleCancelExport = useCallback(() => {
 		if (!session.isExporting) return;

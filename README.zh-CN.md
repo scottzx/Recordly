@@ -11,7 +11,9 @@
 
 ## 关于这个 Fork
 
-macOS 签名与 DMG 打包：运行 `npm run package:mac`，详见[打包工作流](docs/macos-packaging.md)。
+独立版本从 **2.0.0** 开始：[更新记录](CHANGELOG.md) · [版本管理与发布流程](docs/versioning.md)。应用首页的“更新记录”和 Help 菜单可离线查看本分支更新。
+
+macOS 默认快速打包：`npm run package:mac`；正式签名与 DMG 打包：`npm run package:mac -- --release`。详见[打包工作流](docs/macos-packaging.md)。
 
 本仓库是 [scottzx/Recordly](https://github.com/scottzx/Recordly)，基于 [webadderallorg/Recordly](https://github.com/webadderallorg/Recordly) 持续开发，重点增强 **口播＋录屏讲解、三轨编排、字幕和 CLI 自动化剪辑**。保留上游项目与贡献者署名，继续使用 AGPL-3.0 许可证。
 

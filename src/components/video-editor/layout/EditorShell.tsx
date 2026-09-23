@@ -179,6 +179,16 @@ export function EditorShell(props: Props) {
 				exportMessage={exportMessage}
 			/>
 			<EditorAnnouncementBanner />
+			<button
+				className="self-start px-5 py-1 text-xs text-blue-500"
+				onClick={() => {
+					ui.setIsPlaying(false);
+					ui.videoPlaybackRef.current?.pause();
+					void window.electronAPI.showMediaLibrary();
+				}}
+			>
+				← 素材库 / 继续录制
+			</button>
 			<div className="relative flex min-h-0 flex-1 flex-col gap-3 p-4">
 				<div className="relative z-10 flex min-h-0 flex-1 gap-3">
 					<EditorSidebar

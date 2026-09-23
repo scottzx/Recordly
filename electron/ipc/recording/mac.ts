@@ -1,3 +1,5 @@
+import { rememberApprovedLocalReadPath } from "../project/manager";
+import { registerLibraryMedia } from "../project/mediaLibrary";
 import type { ChildProcessWithoutNullStreams } from "node:child_process";
 import fs from "node:fs/promises";
 import { BrowserWindow } from "electron";
@@ -14,8 +16,6 @@ import {
 	nativeCaptureTargetPath,
 	nativeScreenRecordingActive,
 	selectedSource,
-	setCurrentProjectPath,
-	setCurrentVideoPath,
 	setNativeCaptureMicrophonePath,
 	setNativeCaptureProcess,
 	setNativeCaptureStopRequested,
@@ -263,8 +263,9 @@ export async function finalizeStoredVideo(videoPath: string) {
 	}
 
 	snapshotCursorTelemetryForPersistence();
-	setCurrentVideoPath(videoPath);
-	setCurrentProjectPath(null);
+	await rememberApprovedLocalReadPath(videoPath);
+	if (!/-webcam\.[^./\\]+$/i.test(videoPath))
+		await registerLibraryMedia({ videoPath }, "processing");
 	try {
 		await persistPendingCursorTelemetry(videoPath);
 	} catch (error) {

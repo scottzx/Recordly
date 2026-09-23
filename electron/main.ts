@@ -1,3 +1,5 @@
+import { loadProjectFromPath } from "./ipc/project/manager";
+import releases from "../releases.json";
 import fs from "node:fs/promises";
 import { execFile } from "node:child_process";
 import path from "node:path";
@@ -449,7 +451,9 @@ function setupApplicationMenu() {
 							void dialog.showMessageBox({
 								type: error ? "error" : "info",
 								title: "Recordly CLI",
-								message: error ? "Could not install recordly" : "recordly command installed",
+								message: error
+									? "Could not install recordly"
+									: "recordly command installed",
 								detail: error ? stderr || error.message : stdout,
 							});
 						});
@@ -529,6 +533,22 @@ function setupApplicationMenu() {
 		{
 			label: "Help",
 			submenu: [
+				{
+					label: "版本与更新记录…",
+					click: () => {
+						void dialog.showMessageBox({
+							type: "info",
+							title: "Recordly · 独立版本记录",
+							message: `当前版本 ${app.getVersion()} · scottzx/Recordly`,
+							detail: releases
+								.map(
+									(release) =>
+										`v${release.version} · ${release.date}\n${release.title}\n\n${release.changes.map((change) => `• ${change}`).join("\n")}\n\n${release.notes.join("\n")}`,
+								)
+								.join("\n\n────────\n\n"),
+						});
+					},
+				},
 				{
 					label: "Check for Updates…",
 					click: () => {
@@ -1010,6 +1030,23 @@ app.whenReady().then(async () => {
 			console.warn("[media-server] Failed to start media server:", error);
 		}),
 	]);
+
+	ipcMain.handle("show-media-library", () => {
+		showHudOverlayFromTray();
+		getHudOverlayWindow()?.webContents.send("media-library-changed");
+	});
+	ipcMain.handle("open-editing-project", async (_, file: string) => {
+		const existing = getExistingEditorWindow();
+		if (existing) {
+			getHudOverlayWindow()?.hide();
+			restoreWindowSafely(existing);
+			existing.webContents.send("open-editing-project-request", file);
+			return { success: true };
+		}
+		const result = await loadProjectFromPath(file);
+		if (result.success) createEditorWindowWrapper();
+		return result;
+	});
 
 	registerIpcHandlers(
 		createEditorWindowWrapper,

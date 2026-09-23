@@ -33,6 +33,7 @@ export class CompositionRenderer {
 	private media = new Map<string, Media>();
 	private images = new Map<string, HTMLImageElement>();
 	private base: FrameRenderer | null = null;
+	private screenRenderers = new Map<string, FrameRenderer>();
 	private annotations: Awaited<ReturnType<typeof preloadAnnotationAssets>> | undefined;
 	private editor;
 	constructor(readonly project: CompositionProject) {
@@ -80,10 +81,12 @@ export class CompositionRenderer {
 	async initialize() {
 		const errors = validateComposition(this.project);
 		if (errors.length) throw new Error(errors.join("\n"));
-		const mainInfo = await window.electronAPI.compositionProbe(this.project.videoPath);
-		for (const shot of this.project.composition.shots)
-			if (shot.kind === "main" && shot.sourceEndMs > mainInfo.durationMs + 40)
-				throw new Error(`Main source ends before clip ${shot.id}`);
+		if (!this.project.composition.sources) {
+			const mainInfo = await window.electronAPI.compositionProbe(this.project.videoPath);
+			for (const shot of this.project.composition.shots)
+				if (shot.kind === "main" && shot.sourceEndMs > mainInfo.durationMs + 40)
+					throw new Error(`Main source ends before clip ${shot.id}`);
+		}
 		for (const asset of this.project.composition.assets) {
 			const meta = await window.electronAPI.compositionProbe(asset.path);
 			if (
@@ -113,41 +116,62 @@ export class CompositionRenderer {
 			// Webcam recordings can end before the screen recording. VideoSampleSink
 			// holds the last sample for later timestamps, matching the legacy preview.
 		}
-		const main = await this.sample(this.project.videoPath, 0);
-		const telemetry = await window.electronAPI.getCursorTelemetry(this.project.videoPath);
-		this.base = new FrameRenderer({
-			...this.editor,
-			width: this.canvas.width,
-			height: this.canvas.height,
-			videoWidth: main.displayWidth,
-			videoHeight: main.displayHeight,
-			showShadow: this.editor.shadowIntensity > 0,
-			webcam: undefined,
-			webcamUrl: null,
-			annotationRegions: [],
-			autoCaptions: [],
-			timelineEffects: false,
-			cursorTelemetry: telemetry.success ? telemetry.samples : [],
-			// Stateless camera evaluation keeps random-access preview and export identical.
-			zoomClassicMode: true,
-			zoomMotionBlur: 0,
-			cursorMotionBlur: 0,
-		});
-		main.close();
-		await this.base.initialize();
+		if (
+			!this.project.composition.sources &&
+			this.project.composition.shots.some((s) => s.kind === "main")
+		)
+			this.base = await this.screenRenderer(this.project.videoPath);
 		this.annotations = await preloadAnnotationAssets(this.editor.annotationRegions);
 	}
-	private async sourceLayers(shot: MainShot, localMs: number) {
+	private async screenRenderer(file: string, hideCursor = false) {
+		let renderer = this.screenRenderers.get(file);
+		if (renderer) return renderer;
+		const sample = await this.sample(file, 0);
+		try {
+			const telemetry = await window.electronAPI.getCursorTelemetry(file);
+			renderer = new FrameRenderer({
+				...this.editor,
+				width: this.canvas.width,
+				height: this.canvas.height,
+				videoWidth: sample.displayWidth,
+				videoHeight: sample.displayHeight,
+				showShadow: this.editor.shadowIntensity > 0,
+				showCursor: this.editor.showCursor && !hideCursor,
+				webcam: undefined,
+				webcamUrl: null,
+				annotationRegions: [],
+				autoCaptions: [],
+				timelineEffects: false,
+				cursorTelemetry: telemetry.success ? telemetry.samples : [],
+				zoomClassicMode: true,
+				zoomMotionBlur: 0,
+				cursorMotionBlur: 0,
+			});
+			this.screenRenderers.set(file, renderer);
+			await renderer.initialize();
+			return renderer;
+		} finally {
+			sample.close();
+		}
+	}
+
+	private async sourceLayers(shot: MainShot, localMs: number, outputMs: number) {
 		for (const { layer, source, asset, timeMs } of sourceSceneAt(this.project, shot, localMs)) {
 			const sample = await this.sample(asset.path, timeMs);
 			try {
 				let image: CanvasImageSource | VideoSample = sample;
-				if (source.kind === "screen" && asset.path === this.project.videoPath) {
+				if (source.kind === "screen") {
+					const renderer = await this.screenRenderer(
+						asset.path,
+						source.hideOverlayCursorByDefault,
+					);
 					const frame = sample.toVideoFrame();
 					try {
-						await this.base!.renderFrame(
+						await renderer.renderFrame(
 							frame,
-							timeMs * 1000,
+							(this.project.composition.effectsTime === "timeline"
+								? outputMs
+								: timeMs) * 1000,
 							timeMs * 1000,
 							1e6 / this.project.composition.fps,
 							timeMs * 1000,
@@ -155,7 +179,7 @@ export class CompositionRenderer {
 					} finally {
 						frame.close();
 					}
-					image = this.base!.getCanvas();
+					image = renderer.getCanvas();
 				}
 				let x = layer.x * this.canvas.width,
 					y = layer.y * this.canvas.height;
@@ -349,7 +373,7 @@ export class CompositionRenderer {
 			sourceMs = scene.sourceMs!,
 			b = scene.broll;
 		if (b?.mode !== "fullscreen" && scene.shot.views) {
-			await this.sourceLayers(scene.shot, scene.localMs);
+			await this.sourceLayers(scene.shot, scene.localMs, timeMs);
 		} else if (b?.mode !== "fullscreen") {
 			if (layout.mode !== "presenter") {
 				const sample = await this.sample(this.project.videoPath, sourceMs),
@@ -442,15 +466,16 @@ export class CompositionRenderer {
 			this.editor.annotationRegions,
 			w,
 			h,
-			sourceMs,
+			this.project.composition.effectsTime === "timeline" ? timeMs : sourceMs,
 			w / 1920,
 			this.annotations,
 		);
-		this.captions(sourceMs);
+		this.captions(this.project.composition.effectsTime === "timeline" ? timeMs : sourceMs);
 		return this.canvas;
 	}
 	destroy() {
-		this.base?.destroy();
+		for (const renderer of this.screenRenderers.values()) renderer.destroy();
+		this.screenRenderers.clear();
 		this.base = null;
 		for (const m of this.media.values()) m.input.dispose();
 		this.media.clear();

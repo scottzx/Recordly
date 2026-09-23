@@ -75,7 +75,7 @@ export function useProjectSaveActions({
 		async (forceSaveAs: boolean, options?: SaveProjectOptions) => {
 			clearPendingAutosave();
 			return queueSave(async () => {
-				if (!currentSourcePath) {
+				if (currentSourcePath === null) {
 					if (!options?.silent) toast.error("No video loaded");
 					return false;
 				}
@@ -198,7 +198,7 @@ export function useProjectSaveActions({
 				toast.error("Project name is required");
 				return false;
 			}
-			if (!currentSourcePath) {
+			if (currentSourcePath === null) {
 				toast.error("No video loaded");
 				return false;
 			}

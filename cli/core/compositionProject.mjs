@@ -35,11 +35,15 @@ export async function probeMedia(file) {
 }
 export async function readProject(input) {
 	const project = JSON.parse(await fs.readFile(input, "utf8"));
-	if (![1, 2, 3].includes(project.version) || !project.videoPath || !project.editor)
+	if (
+		![1, 2, 3, 4].includes(project.version) ||
+		(!project.videoPath && !project.composition?.sources) ||
+		!project.editor
+	)
 		throw new Error("Unsupported project");
 	const base = path.dirname(path.resolve(input));
 	const resolve = (p) => (path.isAbsolute(p) ? p : path.resolve(base, p));
-	project.videoPath = resolve(project.videoPath);
+	if (project.videoPath) project.videoPath = resolve(project.videoPath);
 	if (project.editor.webcam?.sourcePath)
 		project.editor.webcam.sourcePath = resolve(project.editor.webcam.sourcePath);
 	for (const a of project.editor.audioRegions ?? []) a.audioPath = resolve(a.audioPath);
@@ -48,9 +52,9 @@ export async function readProject(input) {
 }
 export async function validateMedia(project) {
 	const errors = validateComposition(project);
- if(errors.length)return {valid:false,errors,durationMs:0};
+	if (errors.length) return { valid: false, errors, durationMs: 0 };
 	const paths = new Set([
-		project.videoPath,
+		...(project.videoPath ? [project.videoPath] : []),
 		...project.composition.assets.map((a) => a.path),
 		...(project.editor.audioRegions ?? []).map((a) => a.audioPath),
 	]);
@@ -67,7 +71,7 @@ export async function validateMedia(project) {
 	if (main && !main.hasVideo) errors.push("Main source has no video stream");
 	for (const s of project.composition.shots)
 		if (s.kind === "main") {
-			if (main && s.sourceEndMs > main.durationMs + 40)
+			if (!s.sourceClips && main && s.sourceEndMs > main.durationMs + 40)
 				errors.push(`Main clip exceeds its source: ${s.id}`);
 			if (!s.views && s.layout.mode !== "screen") {
 				const webcam = metadata.get(project.editor.webcam?.sourcePath);
@@ -97,7 +101,7 @@ export async function validateMedia(project) {
 export async function projectCommand(action, input, args = {}) {
 	if (!input) throw new Error("A .recordly input path is required");
 	const original = await readProject(input);
-	const meta = await probeMedia(original.videoPath);
+	const meta = original.videoPath ? await probeMedia(original.videoPath) : { durationMs: 0 };
 	let project = migrateProject(original, meta.durationMs);
 	if (!original.composition && meta.width && meta.height) {
 		const scale = Math.min(1, 1920 / meta.width, 1080 / meta.height);

@@ -506,6 +506,31 @@ contextBridge.exposeInMainWorld("electronAPI", {
 	getSources: async (opts: Electron.SourcesOptions) => {
 		return await ipcRenderer.invoke("get-sources", opts);
 	},
+	openEditingProject: (file: string) => ipcRenderer.invoke("open-editing-project", file),
+	onOpenEditingProject: (callback: (file: string) => void) => {
+		const listener = (_event: Electron.IpcRendererEvent, file: string) => callback(file);
+		ipcRenderer.on("open-editing-project-request", listener);
+		return () => ipcRenderer.removeListener("open-editing-project-request", listener);
+	},
+	libraryList: () => ipcRenderer.invoke("library-list"),
+	libraryResolve: (id: string) => ipcRenderer.invoke("library-resolve", id),
+	libraryPickProject: () => ipcRenderer.invoke("library-pick-project"),
+	libraryImport: () => ipcRenderer.invoke("library-import"),
+	libraryCreateProject: (ids: string[], name?: string) =>
+		ipcRenderer.invoke("library-create-project", ids, name),
+	libraryRegisterRecording: (session: unknown, status?: string) =>
+		ipcRenderer.invoke("library-register-recording", session, status),
+	onLibraryChanged: (
+		callback: (entry: import("../shared/mediaLibrary").LibraryMedia | undefined) => void,
+	) => {
+		const listener = (
+			_event: Electron.IpcRendererEvent,
+			entry: import("../shared/mediaLibrary").LibraryMedia | undefined,
+		) => callback(entry);
+		ipcRenderer.on("media-library-changed", listener);
+		return () => ipcRenderer.removeListener("media-library-changed", listener);
+	},
+	showMediaLibrary: () => ipcRenderer.invoke("show-media-library"),
 	switchToEditor: () => {
 		return ipcRenderer.invoke("switch-to-editor");
 	},
@@ -799,10 +824,14 @@ contextBridge.exposeInMainWorld("electronAPI", {
 		return ipcRenderer.invoke("delete-recording-file", filePath);
 	},
 	compositionPickMedia: () => ipcRenderer.invoke("composition-pick-media"),
- compositionProbe: (filePath: string) => ipcRenderer.invoke("composition-probe", filePath),
- compositionAudio: (project: unknown, videoPath: string, range?: {fromMs:number;toMs:number}) => ipcRenderer.invoke("composition-audio", project, videoPath, range),
- compositionCancel: () => ipcRenderer.invoke("composition-cancel"),
- getLocalMediaUrl: (filePath: string) => {
+	compositionProbe: (filePath: string) => ipcRenderer.invoke("composition-probe", filePath),
+	compositionAudio: (
+		project: unknown,
+		videoPath: string,
+		range?: { fromMs: number; toMs: number },
+	) => ipcRenderer.invoke("composition-audio", project, videoPath, range),
+	compositionCancel: () => ipcRenderer.invoke("composition-cancel"),
+	getLocalMediaUrl: (filePath: string) => {
 		return ipcRenderer.invoke("get-local-media-url", filePath) as Promise<
 			{ success: true; url: string } | { success: false }
 		>;

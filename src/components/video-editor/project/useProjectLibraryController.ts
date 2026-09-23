@@ -96,6 +96,15 @@ export function useProjectLibraryController({
 
 	const captureProjectThumbnail = useCallback(async () => {
 		const previewHandle = videoPlaybackRef.current;
+		if (timeline.composition) {
+			const source = previewHandle?.containerRef.current?.querySelector("canvas");
+			if (!source) return null;
+			const thumbnail = document.createElement("canvas");
+			thumbnail.width = 320;
+			thumbnail.height = 180;
+			thumbnail.getContext("2d")?.drawImage(source, 0, 0, 320, 180);
+			return thumbnail.toDataURL("image/png");
+		}
 		const previewVideo = previewHandle?.video ?? null;
 		const previewCanvas = previewHandle?.app?.canvas ?? null;
 

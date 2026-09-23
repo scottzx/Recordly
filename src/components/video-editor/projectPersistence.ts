@@ -339,7 +339,11 @@ export function validateProjectData(candidate: unknown): candidate is EditorProj
 	const project = candidate as Partial<EditorProjectData>;
 	if (typeof project.version !== "number") return false;
 	if (project.projectId !== undefined && typeof project.projectId !== "string") return false;
-	if (typeof project.videoPath !== "string" || !project.videoPath) return false;
+	if (
+		typeof project.videoPath !== "string" ||
+		(!project.videoPath && !Array.isArray(project.composition?.sources))
+	)
+		return false;
 	if (!project.editor || typeof project.editor !== "object") return false;
 	return true;
 }
@@ -1103,7 +1107,7 @@ export function createProjectData(
 	const { composition, ...editorState } = editor;
 	return {
 		...(composition ? { composition } : {}),
-		version: PROJECT_VERSION,
+		version: composition?.effectsTime === "timeline" ? 4 : PROJECT_VERSION,
 		...(typeof projectId === "string" && projectId.trim().length > 0 ? { projectId } : {}),
 		videoPath,
 		editor: editorState,

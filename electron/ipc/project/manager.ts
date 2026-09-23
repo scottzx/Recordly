@@ -1,3 +1,6 @@
+import { registerLibraryMedia } from "./mediaLibrary";
+import { resolveRecordingSession } from "./session";
+import { validateComposition, type CompositionProject } from "../../../shared/composition";
 import { existsSync, constants as fsConstants, realpathSync } from "node:fs";
 import fs from "node:fs/promises";
 import path from "node:path";
@@ -187,6 +190,19 @@ export async function resolveProjectMediaSources(
 		return { success: false, message: "Invalid project file format" };
 	}
 
+	const compositionProject = project as CompositionProject;
+	if (compositionProject.composition?.sources) {
+		const errors = validateComposition(compositionProject);
+		if (errors.length) return { success: false, message: errors.join("\n") };
+		for (const asset of compositionProject.composition.assets) {
+			try {
+				await fs.access(asset.path);
+			} catch {
+				return { success: false, message: `素材文件不存在：${asset.path}` };
+			}
+		}
+		return { success: true, videoPath: compositionProject.videoPath || "", webcamPath: null };
+	}
 	const rawVideoPath = (project as { videoPath?: unknown }).videoPath;
 	if (typeof rawVideoPath !== "string") {
 		return { success: false, message: "Project file is missing a video path" };
@@ -412,6 +428,7 @@ function isLoadableProjectData(projectData: unknown) {
 		version?: unknown;
 		projectId?: unknown;
 		videoPath?: unknown;
+		composition?: { sources?: unknown[] };
 		editor?: unknown;
 	};
 
@@ -419,7 +436,7 @@ function isLoadableProjectData(projectData: unknown) {
 		typeof candidate.version === "number" &&
 		(candidate.projectId === undefined || typeof candidate.projectId === "string") &&
 		typeof candidate.videoPath === "string" &&
-		candidate.videoPath.trim().length > 0 &&
+		(candidate.videoPath.trim().length > 0 || Array.isArray(candidate.composition?.sources)) &&
 		candidate.editor != null &&
 		typeof candidate.editor === "object" &&
 		!Array.isArray(candidate.editor)
@@ -477,9 +494,16 @@ export async function loadProjectFromPath(projectPath: string) {
 			}
 		}
 	}
-	const compositionAssets = (projectObj.composition as {assets?: {path?:string}[]} | undefined)?.assets;
- for (const asset of compositionAssets ?? []) if (typeof asset.path === "string") approvedProjectPaths.push(asset.path);
- await replaceApprovedSessionLocalReadPaths(approvedProjectPaths);
+	const compositionAssets = (
+		projectObj.composition as { assets?: { path?: string }[] } | undefined
+	)?.assets;
+	for (const asset of compositionAssets ?? [])
+		if (typeof asset.path === "string") approvedProjectPaths.push(asset.path);
+	await replaceApprovedSessionLocalReadPaths(approvedProjectPaths);
+	if (mediaSources.videoPath) {
+		const session = await resolveRecordingSession(mediaSources.videoPath);
+		if (session) await registerLibraryMedia(session);
+	}
 	await rememberRecentProject(normalizedPath);
 
 	setCurrentProjectPath(normalizedPath);

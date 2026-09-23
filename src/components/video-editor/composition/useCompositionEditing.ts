@@ -1,9 +1,14 @@
+import { projectSourceRegions } from "./timelineProjection";
+import { projectCaptionCues } from "../captionTimeline";
+import { compositionClips } from "./timelineProjection";
+import { retimeEditingRegions } from "../../../../shared/compositionEffects";
+import { insertLibraryRecording } from "../../../../shared/mediaLibrary";
 import {
 	enableSourceEditing,
 	findSourceItem,
 	resizeView,
 } from "../../../../shared/compositionSources";
-import { createContext, useContext, useMemo, useState } from "react";
+import { createContext, useContext, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 import {
 	applyOperation,
@@ -45,7 +50,8 @@ export function useCompositionEditing({
 	setSection: (section: EditorEffectSection) => void;
 }) {
 	const project = useMemo(
-		() => (source ? createProjectData(source, editor) : null),
+		() =>
+			source !== null || editor.composition ? createProjectData(source ?? "", editor) : null,
 		[source, editor],
 	);
 	const [sourcesExpanded, setSourcesExpanded] = useState(true);
@@ -56,9 +62,26 @@ export function useCompositionEditing({
 			toast.error(errors.join("\n"));
 			return false;
 		}
+		if (
+			composed?.composition.effectsTime === "timeline" &&
+			JSON.stringify(composed.composition.shots) !== JSON.stringify(next.composition.shots)
+		) {
+			state.setZoomRegions((regions) =>
+				retimeEditingRegions(regions, composed.composition, next.composition),
+			);
+			state.setAnnotationRegions((regions) =>
+				retimeEditingRegions(regions, composed.composition, next.composition),
+			);
+			state.setAutoCaptions((regions) =>
+				retimeEditingRegions(regions, composed.composition, next.composition),
+			);
+		}
 		state.setComposition(next.composition);
 		return true;
 	};
+	const latest = useRef({ project, composed, state, duration, commit });
+	latest.current = { project, composed, state, duration, commit };
+	const inserting = useRef(false);
 	const operation = (op: Operation) => {
 		if (!composed) return;
 		try {
@@ -187,6 +210,66 @@ export function useCompositionEditing({
 	};
 	return {
 		project: composed,
+		insertRecording: async (id: string, atMs: number) => {
+			if (inserting.current) {
+				toast.info("正在插入素材，请稍候");
+				return;
+			}
+			inserting.current = true;
+			try {
+				const media = await window.electronAPI.libraryResolve(id);
+				const { project, composed, state, duration, commit } = latest.current;
+				if (!project) return;
+				const base = composed?.composition.sources
+					? structuredClone(composed)
+					: enableSourceEditing(composed ?? migrateProject(project, duration * 1000));
+				if (!base.composition.effectsTime) {
+					const zooms = composed
+						? projectSourceRegions(state.zoomRegions, base.composition)
+						: state.zoomRegions;
+					const annotations = composed
+						? projectSourceRegions(state.annotationRegions, base.composition)
+						: state.annotationRegions;
+					const captions = projectCaptionCues(
+						state.autoCaptions,
+						compositionClips(base.composition).filter(
+							(clip) => clip.timelineRole === "aroll",
+						),
+					).map(({ sourceCueId: _sourceCueId, sourceCue, clip, ...cue }) => ({
+						...cue,
+						words: sourceCue.words?.flatMap((word) => {
+							const map = (time: number) =>
+								clip.startMs + (time - (clip.sourceStartMs ?? 0)) / clip.speed;
+							const startMs = Math.max(cue.startMs, map(word.startMs));
+							const endMs = Math.min(cue.endMs, map(word.endMs));
+							return endMs > startMs ? [{ ...word, startMs, endMs }] : [];
+						}),
+					}));
+					base.composition.effectsTime = "timeline";
+					for (const shot of base.composition.shots)
+						if (shot.kind === "main") shot.instanceId ??= shot.id;
+					const next = insertLibraryRecording(base, media, atMs, crypto.randomUUID());
+					if (commit(next)) {
+						state.setZoomRegions(
+							retimeEditingRegions(zooms, base.composition, next.composition),
+						);
+						state.setAnnotationRegions(
+							retimeEditingRegions(annotations, base.composition, next.composition),
+						);
+						state.setAutoCaptions(
+							retimeEditingRegions(captions, base.composition, next.composition),
+						);
+					}
+					return;
+				}
+				const next = insertLibraryRecording(base, media, atMs, crypto.randomUUID());
+				commit(next);
+			} catch (error) {
+				toast.error(String(error));
+			} finally {
+				inserting.current = false;
+			}
+		},
 		sourcesExpanded,
 		setSourcesExpanded,
 		sourceSpan,

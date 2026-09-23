@@ -105,17 +105,37 @@ export function useTimelineProjection({
 	}, [clipRegions, duration, timeline.setTrimRegions]);
 
 	const toSourceTime = useCallback(
-		(timeMs: number) => mapTimelineTimeToSourceTime(timeMs, clipRegions),
-		[clipRegions],
+		(timeMs: number) =>
+			timeline.composition?.effectsTime === "timeline"
+				? timeMs
+				: mapTimelineTimeToSourceTime(timeMs, clipRegions),
+		[clipRegions, timeline.composition],
 	);
 	const toTimelineTime = useCallback(
-		(timeMs: number) => mapSourceTimeToTimelineTime(timeMs, clipRegions),
-		[clipRegions],
+		(timeMs: number) =>
+			timeline.composition?.effectsTime === "timeline"
+				? timeMs
+				: mapSourceTimeToTimelineTime(timeMs, clipRegions),
+		[clipRegions, timeline.composition],
 	);
 	const effectiveZoomRegions: ZoomRegion[] = zoomRegions;
 	const effectiveCaptionRegions = useMemo(
-		() => projectCaptionCues(autoCaptions, mainClips),
-		[autoCaptions, mainClips],
+		() =>
+			projectCaptionCues(
+				autoCaptions,
+				timeline.composition?.effectsTime === "timeline"
+					? [
+							{
+								id: "timeline",
+								startMs: 0,
+								endMs: durationMs(timeline.composition),
+								sourceStartMs: 0,
+								speed: 1,
+							},
+						]
+					: mainClips,
+			),
+		[autoCaptions, mainClips, timeline.composition],
 	);
 	const timelinePlayheadTime = currentTime;
 	const timelineDuration = useMemo(

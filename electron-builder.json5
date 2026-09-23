@@ -47,7 +47,7 @@
   "publish": [
     {
       "provider": "github",
-      "owner": "webadderall",
+      "owner": "scottzx",
       "repo": "Recordly",
       "tagNamePrefix": "v",
       "publishAutoUpdate": true

@@ -1,3 +1,4 @@
+import { protectedLibraryPaths } from "../project/mediaLibrary";
 import fs from "node:fs/promises";
 import path from "node:path";
 import {
@@ -73,11 +74,13 @@ async function loadSavedProjectMediaPaths() {
 			.map(async (entry) => {
 				const projectPath = path.join(projectsDir, entry.name);
 				let rawProject: {
+					composition?: { assets?: { path?: unknown }[] };
 					videoPath?: unknown;
 					editor?: { webcam?: { sourcePath?: unknown } };
 				};
 				try {
 					rawProject = parseJsonWithByteOrderMark<{
+						composition?: { assets?: { path?: unknown }[] };
 						videoPath?: unknown;
 						editor?: { webcam?: { sourcePath?: unknown } };
 					}>(await fs.readFile(projectPath, "utf-8"));
@@ -92,6 +95,7 @@ async function loadSavedProjectMediaPaths() {
 					throw error;
 				}
 				const candidatePaths = [
+					...(rawProject.composition?.assets ?? []).map((asset) => asset.path),
 					rawProject.videoPath,
 					rawProject.editor?.webcam?.sourcePath,
 				];
@@ -121,6 +125,8 @@ export async function pruneAutoRecordings(exemptPaths: string[] = []) {
 	const recordingsDir = await getRecordingsDir();
 	await fs.mkdir(recordingsDir, { recursive: true });
 	const protectedProjectMediaPaths = await loadSavedProjectMediaPaths();
+	for (const file of await protectedLibraryPaths())
+		protectedProjectMediaPaths.add(normalizePath(file));
 	const exempt = new Set(
 		[currentVideoPath, ...exemptPaths]
 			.filter((value): value is string => Boolean(value))

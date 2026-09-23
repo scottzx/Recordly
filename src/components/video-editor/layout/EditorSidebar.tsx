@@ -1,3 +1,4 @@
+import { MediaLibraryPanel } from "../../media-library/MediaLibraryPanel";
 import { useCompositionContext } from "../composition/useCompositionEditing";
 import { CompositionSettingsPanel } from "../composition/CompositionSettingsPanel";
 import {
@@ -26,9 +27,11 @@ type Props = {
 };
 
 export function EditorSidebar({ t, activeSection, setActiveSection, settingsPanelProps }: Props) {
-	const sourceEditing = Boolean(useCompositionContext()?.project?.composition.sources);
+	const composition = useCompositionContext();
+	const sourceEditing = Boolean(composition?.project?.composition.sources);
 	const sections = useMemo(
 		() => [
+			{ id: "library" as const, label: "素材库", icon: Camera },
 			{ id: "composition" as const, label: "镜头与素材", icon: Camera },
 			{ id: "scene" as const, label: t("settings.sections.scene", "Scene"), icon: Sparkle },
 			{ id: "cursor" as const, label: t("settings.sections.cursor", "Cursor"), icon: Cursor },
@@ -127,7 +130,12 @@ export function EditorSidebar({ t, activeSection, setActiveSection, settingsPane
 					</motion.button>
 				</div>
 			</div>
-			{activeSection === "composition" || (sourceEditing && activeSection === "webcam") ? (
+			{activeSection === "library" ? (
+				<MediaLibraryPanel
+					compact
+					onInsert={(id) => composition!.insertRecording(id, composition!.time)}
+				/>
+			) : activeSection === "composition" || (sourceEditing && activeSection === "webcam") ? (
 				<CompositionSettingsPanel />
 			) : activeSection === "extensions" ? (
 				<ExtensionManager />

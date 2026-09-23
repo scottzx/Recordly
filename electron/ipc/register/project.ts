@@ -1,3 +1,4 @@
+import { registerLibraryHandlers } from "./library";
 import { registerCompositionHandlers } from "./composition";
 import { randomUUID } from "node:crypto";
 import { constants as fsConstants } from "node:fs";
@@ -214,7 +215,8 @@ async function ensureNamedProjectSaveDoesNotOverwriteDifferentProject(
 }
 
 export function registerProjectHandlers() {
- registerCompositionHandlers();
+	registerCompositionHandlers();
+	registerLibraryHandlers();
 	setCurrentProjectPathListener((projectPath) => {
 		void (projectPath ? syncProjectFileWatch(projectPath) : stopProjectFileWatch());
 	});
@@ -658,7 +660,7 @@ export function registerProjectHandlers() {
 				resolvedSession.webcamPath,
 			]);
 
-			if (nextSession.webcamPath) {
+			if (nextSession.webcamPath && !options?.preserveProjectPath) {
 				await persistRecordingSessionManifest(nextSession);
 			}
 
@@ -702,7 +704,8 @@ export function registerProjectHandlers() {
 			if (!options?.preserveProjectPath) {
 				setCurrentProjectPath(null);
 			}
-			await persistRecordingSessionManifest(currentRecordingSession!);
+			if (!options?.preserveProjectPath)
+				await persistRecordingSessionManifest(currentRecordingSession!);
 
 			for (const window of BrowserWindow.getAllWindows()) {
 				if (!window.isDestroyed()) {

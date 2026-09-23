@@ -29,6 +29,9 @@ export interface Asset {
 	hasAudio?: boolean;
 }
 export interface MainShot {
+	name?: string;
+	instanceId?: string;
+	recordingId?: string;
 	sourceClips?: SourceClip[];
 	views?: ViewClip[];
 	id: string;
@@ -71,6 +74,7 @@ export interface BRoll {
 	crop?: CropRegion;
 }
 export interface Composition {
+	effectsTime?: "timeline";
 	sources?: SyncedSource[];
 	assets: Asset[];
 	shots: Shot[];
@@ -198,7 +202,7 @@ export function migrateProject(
 			})),
 		};
 	}
-	result.version = 3;
+	result.version = result.composition?.effectsTime === "timeline" ? 4 : 3;
 	return result as CompositionProject;
 }
 function split(composition: Composition, clipId: string, offsetMs: number) {
@@ -391,7 +395,7 @@ export function applyOperation(composition: Composition, op: Operation): Composi
 export function applyPlan(project: CompositionProject, plan: EditPlan): CompositionProject {
 	if (plan.version !== 1) throw new Error("Unsupported edit plan version");
 	const result = structuredClone(project);
-	result.version = 3;
+	result.version = result.composition?.effectsTime === "timeline" ? 4 : 3;
 	result.editor = { ...result.editor, ...plan.editor };
 	result.composition = { ...result.composition, ...plan.composition };
 	for (const op of plan.operations ?? [])
@@ -407,7 +411,6 @@ export function validateComposition(project: CompositionProject): string[] {
 		return ["Invalid composition structure"];
 	if ([...c.assets, ...c.shots, ...c.broll].some((item) => !item || typeof item !== "object"))
 		return ["Invalid composition element"];
-	if (!c.shots.length) errors.push("Timeline must contain at least one shot");
 	if (![24, 25, 30, 50, 60].includes(c.fps)) errors.push("Unsupported frame rate");
 	if (
 		![c.width, c.height].every(

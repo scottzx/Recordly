@@ -88,6 +88,14 @@ export function useProjectOpenActions({
 		],
 	);
 
+	useEffect(
+		() =>
+			window.electronAPI.onOpenEditingProject((file) => {
+				void handleOpenProjectFromLibrary(file);
+			}),
+		[handleOpenProjectFromLibrary],
+	);
+
 	const handleImportMediaOrProject = useCallback(async () => {
 		if (!(await confirmReplaceSourceWithUnsavedChanges("import a file"))) return;
 		const result = await window.electronAPI.openVideoFilePicker({ includeProjects: true });

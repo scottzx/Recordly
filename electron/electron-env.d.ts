@@ -235,6 +235,29 @@ interface Window {
 		) => Promise<{ success: boolean; enabled: boolean }>;
 		getAssetBasePath: () => Promise<string | null>;
 		getSources: (opts: Electron.SourcesOptions) => Promise<ProcessedDesktopSource[]>;
+		openEditingProject: (file: string) => Promise<{ success: boolean; message?: string }>;
+		onOpenEditingProject: (callback: (file: string) => void) => () => void;
+		libraryList: () => Promise<import("../shared/mediaLibrary").LibraryMedia[]>;
+		libraryResolve: (id: string) => Promise<import("../shared/mediaLibrary").LibraryRecording>;
+		libraryPickProject: () => Promise<string | null>;
+		libraryImport: () => Promise<import("../shared/mediaLibrary").LibraryMedia[]>;
+		libraryCreateProject: (
+			ids: string[],
+			name?: string,
+		) => Promise<{ success: boolean; path?: string; project?: unknown; message?: string }>;
+		libraryRegisterRecording: (
+			session: {
+				videoPath: string;
+				webcamPath?: string | null;
+				timeOffsetMs?: number;
+				hideOverlayCursorByDefault?: boolean;
+			},
+			status?: "processing" | "ready",
+		) => Promise<import("../shared/mediaLibrary").LibraryMedia>;
+		onLibraryChanged: (
+			callback: (entry: import("../shared/mediaLibrary").LibraryMedia | undefined) => void,
+		) => () => void;
+		showMediaLibrary: () => Promise<void>;
 		switchToEditor: () => Promise<void>;
 		openSourceSelector: () => Promise<void>;
 		selectSource: (source: ProcessedDesktopSource) => Promise<ProcessedDesktopSource>;
@@ -831,11 +854,23 @@ interface Window {
 			}>;
 			error?: string;
 		}>;
-		compositionPickMedia: () => Promise<{path:string;durationMs:number;width:number;height:number;hasAudio:boolean}|null>;
- compositionProbe: (filePath: string) => Promise<{durationMs:number;width:number;height:number;hasAudio:boolean}>;
- compositionAudio: (project: unknown, videoPath:string, range?:{fromMs:number;toMs:number}) => Promise<{success:boolean;tempPath:string;hasAudio:boolean}>;
- compositionCancel: () => Promise<void>;
- openProjectFileAtPath: (filePath: string) => Promise<{
+		compositionPickMedia: () => Promise<{
+			path: string;
+			durationMs: number;
+			width: number;
+			height: number;
+			hasAudio: boolean;
+		} | null>;
+		compositionProbe: (
+			filePath: string,
+		) => Promise<{ durationMs: number; width: number; height: number; hasAudio: boolean }>;
+		compositionAudio: (
+			project: unknown,
+			videoPath: string,
+			range?: { fromMs: number; toMs: number },
+		) => Promise<{ success: boolean; tempPath: string; hasAudio: boolean }>;
+		compositionCancel: () => Promise<void>;
+		openProjectFileAtPath: (filePath: string) => Promise<{
 			success: boolean;
 			path?: string;
 			project?: unknown;

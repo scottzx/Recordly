@@ -737,42 +737,30 @@ export function useScreenRecorder(): UseScreenRecorderReturn {
 	}, []);
 
 	const finalizeRecordingSession = useCallback(
-		async (videoPath: string, webcamPath: string | null) => {
-			const start = performance.now();
-			console.log("[PERF:RENDERER] Finalize Session & Switch to Editor: STARTED");
-			const shouldHideOverlayCursor = hideEditorOverlayCursorByDefault.current;
+		async (
+			videoPath: string,
+			webcamPath: string | null,
+			status: "processing" | "ready" = "ready",
+		) => {
 			try {
-				if (webcamPath) {
-					await window.electronAPI.setCurrentRecordingSession({
+				await window.electronAPI.libraryRegisterRecording(
+					{
 						videoPath,
 						webcamPath,
 						timeOffsetMs: webcamTimeOffsetMs.current,
-						hideOverlayCursorByDefault: shouldHideOverlayCursor,
-					});
-				} else {
-					await window.electronAPI.setCurrentVideoPath(videoPath, {
-						hideOverlayCursorByDefault: shouldHideOverlayCursor,
-					});
-				}
+						hideOverlayCursorByDefault: hideEditorOverlayCursorByDefault.current,
+					},
+					status,
+				);
+				setFinalizing(false);
+				await window.electronAPI.showMediaLibrary();
 			} catch (error) {
-				console.error("Failed to persist recording session metadata:", error);
-
-				try {
-					await window.electronAPI.setCurrentVideoPath(videoPath, {
-						hideOverlayCursorByDefault: shouldHideOverlayCursor,
-					});
-				} catch (fallbackError) {
-					console.error("Failed to persist fallback video path:", fallbackError);
-				}
+				await notifyRecordingFinalizationFailure(
+					`录制已保存，但素材库更新失败：${String(error)}`,
+				);
 			}
-
-			setFinalizing(false);
-			await window.electronAPI.switchToEditor();
-			console.log(
-				`[PERF:RENDERER] Finalize Session & Switch to Editor: COMPLETED in ${(performance.now() - start).toFixed(2)}ms`,
-			);
 		},
-		[],
+		[notifyRecordingFinalizationFailure],
 	);
 
 	const closeMicFallbackPauseInterval = useCallback((now = performance.now()) => {
@@ -987,10 +975,6 @@ export function useScreenRecorder(): UseScreenRecorderReturn {
 			const webcamPath = await stopWebcamRecorder();
 			await storeMicrophoneSidecar(resolvedMicFallbackBlobPromise, result.path, startDelayMs);
 			await finalizeRecordingSession(result.path, webcamPath);
-
-			if (typeof window.electronAPI?.hudOverlayClose === "function") {
-				window.electronAPI.hudOverlayClose();
-			}
 
 			return result.path;
 		},
@@ -1356,10 +1340,12 @@ export function useScreenRecorder(): UseScreenRecorderReturn {
 				}
 
 				const finalPath = result.path;
+				const sessionOffset = webcamTimeOffsetMs.current;
+				const sessionHideCursor = hideEditorOverlayCursorByDefault.current;
 
-				// 1. Finalize the session and switch to editor immediately (Optimistic UI)
+				// Publish the recording while its companion media finishes in the background.
 				// We pass null for webcamPath initially to avoid blocking on webcam disk writes/muxing.
-				await finalizeRecordingSession(finalPath, null);
+				await finalizeRecordingSession(finalPath, null, "processing");
 
 				// 2. Perform background finalization (webcam, muxing, sidecars)
 				// We don't await this to keep the UI responsive
@@ -1376,13 +1362,15 @@ export function useScreenRecorder(): UseScreenRecorderReturn {
 
 							if (webcamPath) {
 								try {
-									await window.electronAPI.setCurrentRecordingSession({
-										videoPath: finalPath,
-										webcamPath,
-										timeOffsetMs: webcamTimeOffsetMs.current,
-										hideOverlayCursorByDefault:
-											hideEditorOverlayCursorByDefault.current,
-									});
+									await window.electronAPI.libraryRegisterRecording(
+										{
+											videoPath: finalPath,
+											webcamPath,
+											timeOffsetMs: sessionOffset,
+											hideOverlayCursorByDefault: sessionHideCursor,
+										},
+										"processing",
+									);
 								} catch (sessionError) {
 									console.error(
 										"Failed to publish the asynchronously finalized webcam:",
@@ -1423,18 +1411,18 @@ export function useScreenRecorder(): UseScreenRecorderReturn {
 							}
 						}
 
-						console.log(
-							"[useScreenRecorder] Emitting setCurrentRecordingSession with:",
-							{ finalPath, webcamPath },
-						);
+						console.log("[useScreenRecorder] Emitting libraryRegisterRecording with:", {
+							finalPath,
+							webcamPath,
+						});
 
 						// Update the session state to notify the editor that all background assets (webcam, mic, etc.) are now ready.
-						// This broadcasts a 'recording-session-changed' event that the open editor listens to for re-scanning assets.
-						await window.electronAPI.setCurrentRecordingSession({
+						// Library changes do not replace the active editing project.
+						await window.electronAPI.libraryRegisterRecording({
 							videoPath: finalPath,
 							webcamPath,
-							timeOffsetMs: webcamTimeOffsetMs.current,
-							hideOverlayCursorByDefault: hideEditorOverlayCursorByDefault.current,
+							timeOffsetMs: sessionOffset,
+							hideOverlayCursorByDefault: sessionHideCursor,
 						});
 
 						console.log(
@@ -1442,15 +1430,6 @@ export function useScreenRecorder(): UseScreenRecorderReturn {
 						);
 					} catch (bgError) {
 						console.error("Error in background finalization:", bgError);
-					} finally {
-						// After all background tasks are done (webcam, mic sidecars, muxing),
-						// we can safely close the HUD window to release hardware and resources.
-						if (typeof window.electronAPI?.hudOverlayClose === "function") {
-							console.log(
-								"[useScreenRecorder] All background tasks finished, closing HUD",
-							);
-							window.electronAPI.hudOverlayClose();
-						}
 					}
 				})();
 			})();
@@ -2197,36 +2176,22 @@ export function useScreenRecorder(): UseScreenRecorderReturn {
 
 					if (videoResult.path) {
 						const finalVideoPath = videoResult.path;
-						// 1. Launch editor immediately (Optimistic UI)
-						await finalizeRecordingSession(finalVideoPath, null);
-
-						// 2. Background webcam processing
-						void (async () => {
-							const webcamPath = pendingWebcamPathPromise.current
-								? await pendingWebcamPathPromise.current
-								: resolvedWebcamPath.current;
-
-							try {
-								if (webcamPath) {
-									await window.electronAPI.setCurrentRecordingSession({
-										videoPath: finalVideoPath,
-										webcamPath,
-										timeOffsetMs: webcamTimeOffsetMs.current,
-										hideOverlayCursorByDefault:
-											hideEditorOverlayCursorByDefault.current,
-									});
-								}
-							} finally {
-								// After all background tasks are done (webcam),
-								// we can safely close the HUD window to release hardware and resources.
-								if (typeof window.electronAPI?.hudOverlayClose === "function") {
-									console.log(
-										"[useScreenRecorder:browser] All background tasks finished, closing HUD",
-									);
-									window.electronAPI.hudOverlayClose();
-								}
-							}
-						})();
+						const sessionOffset = webcamTimeOffsetMs.current;
+						const sessionHideCursor = hideEditorOverlayCursorByDefault.current;
+						const webcamReady =
+							pendingWebcamPathPromise.current ??
+							Promise.resolve(resolvedWebcamPath.current);
+						await finalizeRecordingSession(finalVideoPath, null, "processing");
+						void webcamReady
+							.then((webcamPath) =>
+								window.electronAPI.libraryRegisterRecording({
+									videoPath: finalVideoPath,
+									webcamPath,
+									timeOffsetMs: sessionOffset,
+									hideOverlayCursorByDefault: sessionHideCursor,
+								}),
+							)
+							.catch((error) => notifyRecordingFinalizationFailure(String(error)));
 					} else {
 						await notifyRecordingFinalizationFailure("Failed to save the recording.");
 					}

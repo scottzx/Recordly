@@ -14,7 +14,7 @@ import { getFfmpegBinaryPath, getFfprobeBinaryPath } from "../ffmpeg/binary";
 import { isOwnedExportPath, registerOwnedExportPath } from "../export/exportStream";
 import { resolveApprovedLocalMediaPath, rememberApprovedLocalReadPath } from "../project/manager";
 const run = promisify(execFile);
-async function probe(file: string) {
+export async function probe(file: string) {
 	const allowed = await resolveApprovedLocalMediaPath(file);
 	if (!allowed) throw new Error(`Media path is not approved: ${file}`);
 	const { stdout } = await run(getFfprobeBinaryPath(), [

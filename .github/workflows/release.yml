@@ -75,6 +75,7 @@ jobs:
             exit 1
           fi
 
+          node scripts/sync-version.mjs --check
           TAG_VERSION="${TAG_NAME#v}"
           PACKAGE_VERSION=$(node -p "require('./package.json').version")
 
@@ -98,7 +99,7 @@ jobs:
 
           if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
             gh release view "$TAG_NAME" --repo "${{ github.repository }}" >/dev/null 2>&1 || \
-              gh release create "$TAG_NAME" --repo "${{ github.repository }}" --verify-tag --draft --title "$TAG_NAME"
+              gh release create "$TAG_NAME" --repo "${{ github.repository }}" --verify-tag --draft --title "$TAG_NAME" --notes-file release-notes.md
           fi
 
           echo "tag_name=$TAG_NAME" >> "$GITHUB_OUTPUT"
@@ -734,7 +735,7 @@ jobs:
       - prepare-release
       - publish-release-assets
     runs-on: ubuntu-latest
-    if: needs.prepare-release.outputs.prerelease != 'true' && needs.prepare-release.outputs.release_scope == 'all'
+    if: needs.prepare-release.outputs.prerelease != 'true' && needs.prepare-release.outputs.release_scope == 'all' && vars.HOMEBREW_TAP_REPO != ''
     steps:
       - name: Dispatch Homebrew tap workflow
         shell: bash

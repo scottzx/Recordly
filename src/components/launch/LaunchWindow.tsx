@@ -188,6 +188,14 @@ function LaunchWindowContent() {
 			webcamPreviewDragStartRef,
 		});
 
+	useEffect(
+		() =>
+			window.electronAPI.onLibraryChanged(() => {
+				setShowLaunchHome(true);
+			}),
+		[],
+	);
+
 	useEffect(() => {
 		void refreshProjectLibrary();
 	}, [refreshProjectLibrary]);

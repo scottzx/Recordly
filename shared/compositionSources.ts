@@ -2,6 +2,7 @@ import type { CompositionProject, MainShot, Layout } from "./composition.ts";
 import type { CropRegion } from "../src/components/video-editor/types.ts";
 
 export interface SyncedSource {
+	hideOverlayCursorByDefault?: boolean;
 	id: string;
 	assetId: string;
 	name: string;

@@ -70,7 +70,7 @@ export function useExportRunner(input: ExportRunnerInput) {
 				exportRunIdRef,
 				cancelledExportRunIdRef,
 			} = exportSession;
-			if (!videoPath) {
+			if (!videoPath && !inputRef.current.compositionProject?.composition.shots.length) {
 				toast.error("No video loaded");
 				return;
 			}
@@ -153,6 +153,8 @@ export function useExportRunner(input: ExportRunnerInput) {
 					}
 					return;
 				}
+
+				if (!videoPath) throw new Error("No video loaded");
 
 				// Get preview CONTAINER dimensions for scaling
 				const playbackRef = videoPlaybackRef.current;

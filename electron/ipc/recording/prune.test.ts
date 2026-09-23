@@ -104,6 +104,24 @@ describe("pruneAutoRecordings", () => {
 		await expect(fs.access(prunableRecordingPath!)).rejects.toThrow();
 	});
 
+	it("protects library recordings even when no editing project uses them", async () => {
+		const { getRecordingsDir } = await import("../utils");
+		const { registerLibraryMedia } = await import("../project/mediaLibrary");
+		const { pruneAutoRecordings } = await import("./prune");
+		const root = await getRecordingsDir();
+		await fs.mkdir(root, { recursive: true });
+		const videoPath = path.join(root, "recording-library.mp4");
+		const webcamPath = path.join(root, "recording-library-webcam.mp4");
+		for (const file of [videoPath, webcamPath]) {
+			await fs.writeFile(file, "media");
+			await fs.utimes(file, new Date(0), new Date(0));
+		}
+		await registerLibraryMedia({ videoPath, webcamPath });
+		await pruneAutoRecordings();
+		await expect(fs.access(videoPath)).resolves.toBeUndefined();
+		await expect(fs.access(webcamPath)).resolves.toBeUndefined();
+	});
+
 	it("aborts pruning when a saved project cannot be parsed", async () => {
 		const { getRecordingsDir } = await import("../utils");
 		const { PROJECTS_DIRECTORY_NAME, PROJECT_FILE_EXTENSION } = await import("../constants");

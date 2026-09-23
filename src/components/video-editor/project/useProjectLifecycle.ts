@@ -112,7 +112,9 @@ export function useProjectLifecycle(input: Input) {
 		project.setVideoSourcePath(sourcePath);
 		project.setCurrentProjectPath(path ?? null);
 		refs.pendingFreshRecordingAutoZoomPathRef.current = null;
-		if (editor.webcam.sourcePath) {
+		if (loadedProject.composition?.sources) {
+			current.applySessionPresentation(null);
+		} else if (editor.webcam.sourcePath) {
 			await window.electronAPI.setCurrentRecordingSession?.(
 				{
 					videoPath: sourcePath,
@@ -129,7 +131,7 @@ export function useProjectLifecycle(input: Input) {
 			});
 			current.applySessionPresentation(null);
 		}
-		project.setVideoPath(await resolveVideoUrl(sourcePath));
+		project.setVideoPath(sourcePath ? await resolveVideoUrl(sourcePath) : "");
 
 		appearance.setWallpaper(editor.wallpaper);
 		appearance.setShadowIntensity(editor.shadowIntensity);
@@ -243,7 +245,7 @@ export function useProjectLifecycle(input: Input) {
 
 	const currentProjectSnapshot = useMemo(
 		() =>
-			input.currentSourcePath
+			input.currentSourcePath !== null
 				? createProjectData(
 						input.currentSourcePath,
 						input.currentPersistedEditorState,

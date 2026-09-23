@@ -10,7 +10,6 @@ on:
       tap_repo:
         description: "Tap repository in owner/repo format"
         required: false
-        default: "webadderall/homebrew-tap"
         type: string
 
 permissions:
@@ -21,11 +20,15 @@ jobs:
     runs-on: ubuntu-latest
     env:
       GH_TOKEN: ${{ secrets.HOMEBREW_TAP_TOKEN }}
-      TAP_REPO: ${{ github.event.inputs.tap_repo || vars.HOMEBREW_TAP_REPO || 'webadderall/homebrew-tap' }}
+      TAP_REPO: ${{ github.event.inputs.tap_repo || vars.HOMEBREW_TAP_REPO }}
       AUTO_MERGE_TAP_PR: ${{ vars.HOMEBREW_TAP_AUTO_MERGE || 'true' }}
     steps:
       - name: Validate token
         run: |
+          if [ -z "${TAP_REPO}" ]; then
+            echo "Set tap_repo or HOMEBREW_TAP_REPO for this fork."
+            exit 1
+          fi
           if [ -z "${GH_TOKEN}" ]; then
             echo "HOMEBREW_TAP_TOKEN secret is not set."
             exit 1

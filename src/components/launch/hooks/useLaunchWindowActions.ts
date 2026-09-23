@@ -19,16 +19,8 @@ export function useLaunchWindowActions() {
 	}, []);
 
 	const openVideoFile = useCallback(async () => {
-		const result = await window.electronAPI.openVideoFilePicker({ includeProjects: true });
-		if (result.canceled) return;
-		if (result.success && result.kind === "project") {
-			await window.electronAPI.switchToEditor();
-			return;
-		}
-		if (result.success && result.path) {
-			await window.electronAPI.setCurrentVideoPath(result.path);
-			await window.electronAPI.switchToEditor();
-		}
+		const file = await window.electronAPI.libraryPickProject();
+		if (file) await window.electronAPI.openEditingProject(file);
 	}, []);
 
 	const refreshProjectLibrary = useCallback(async () => {
@@ -42,11 +34,10 @@ export function useLaunchWindowActions() {
 	}, []);
 	const openProjectFromLibrary = useCallback(async (projectPath: string) => {
 		try {
-			const result = await window.electronAPI.openProjectFileAtPath(projectPath);
-			if (result.canceled || !result.success) {
+			const result = await window.electronAPI.openEditingProject(projectPath);
+			if (!result.success) {
 				return;
 			}
-			await window.electronAPI.switchToEditor();
 		} catch (error) {
 			console.error("Failed to open project from library:", error);
 		}

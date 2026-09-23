@@ -69,6 +69,7 @@ export function useEditorExportController(input: Input) {
 		remountPreview: input.remountPreview,
 	});
 	const dialogActions = useExportDialogActions({
+		compositionProject: input.compositionProject,
 		videoPath: input.videoPath,
 		videoPlaybackRef: input.videoPlaybackRef,
 		hasCaptionsForSidecar: input.hasCaptionsForSidecar,
@@ -87,7 +88,10 @@ export function useEditorExportController(input: Input) {
 		error: input.error,
 		isPreviewReady: input.isPreviewReady,
 		loading: input.loading,
-		videoPath: input.videoPath,
+		videoPath:
+			input.videoPath ||
+			input.compositionProject?.composition.assets.find((a) => a.kind === "video")?.path ||
+			null,
 		videoSourcePath: input.videoSourcePath,
 		handleExport: runner.handleExport,
 	});

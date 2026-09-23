@@ -12,6 +12,8 @@ export function projectSourceRegions<T extends { id: string; startMs: number; en
 	regions: T[],
 	composition: Composition,
 ): T[] {
+	if (composition.effectsTime === "timeline")
+		return regions.map((r) => ({ ...r, id: `${r.id}::timeline` }));
 	return timeline(composition).flatMap(({ shot, startMs }) =>
 		shot.kind === "main"
 			? regions.flatMap((region) => {
@@ -39,6 +41,7 @@ export function sourceRegionSpan(
 	const separator = id.lastIndexOf("::");
 	const sourceId = id.slice(0, separator),
 		clipId = id.slice(separator + 2);
+	if (composition.effectsTime === "timeline") return { id: sourceId, span };
 	const entry = timeline(composition).find((e) => e.shot.id === clipId);
 	if (!entry || entry.shot.kind !== "main") return null;
 	return {
@@ -88,11 +91,12 @@ export function compositionClips(
 		sourceStartMs: shot.kind === "main" ? shot.sourceStartMs : 0,
 		speed: shot.kind === "main" ? shot.speed : 1,
 		muted: shot.kind === "card" || shot.muted,
-		displayLabel: shot.kind === "card" ? `包装 · ${shot.title || shot.template}` : undefined,
+		displayLabel: shot.kind === "card" ? `包装 · ${shot.title || shot.template}` : shot.name,
 	}));
 }
 
 export function sourceSpanAtOutput(span: { start: number; end: number }, composition: Composition) {
+	if (composition.effectsTime === "timeline") return span;
 	const entry = timeline(composition).find(
 		(e) => span.start >= e.startMs && span.start < e.endMs,
 	);
