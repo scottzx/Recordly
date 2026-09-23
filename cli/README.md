@@ -1,6 +1,8 @@
 # Recordly CLI & Agent MCP Toolkit
 
-A powerful, headless, non-interactive Command-Line Interface and Model Context Protocol (MCP) Server for [Recordly](https://github.com/webadderallorg/Recordly).
+A powerful, headless, non-interactive Command-Line Interface and Model Context Protocol (MCP) Server for [Recordly](https://github.com/scottzx/Recordly).
+
+**New in this fork:** v3 projects with A-roll, B-roll, and packaging tracks, per-clip layouts, and up to 16× composition speed. Use `project inspect/apply/validate/preview` and `render` with Node.js 22.18+. See the [composition workflow and JSON plan reference](../docs/composition.md); the new project commands use milliseconds and share editing rules with the original GUI.
 
 Built for **AI Agents, CI/CD pipelines, and automated developer walkthroughs**:
 - 🎬 **Native ScreenCaptureKit Recording**: Background daemon recording with ScreenCaptureKit on macOS.

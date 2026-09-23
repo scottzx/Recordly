@@ -9,6 +9,55 @@
   <img src="https://img.shields.io/badge/open%20source-AGPL3.0-2563eb?style=for-the-badge" alt="AGPL 3.0 license" />
 </p>
 
+## 关于这个 Fork
+
+本仓库是 [scottzx/Recordly](https://github.com/scottzx/Recordly)，基于 [webadderallorg/Recordly](https://github.com/webadderallorg/Recordly) 持续开发，重点增强 **口播＋录屏讲解、三轨编排、字幕和 CLI 自动化剪辑**。保留上游项目与贡献者署名，继续使用 AGPL-3.0 许可证。
+
+### Fork 版本新增了什么
+
+| 方向 | 本版本更新 |
+| --- | --- |
+| **三轨剪辑** | 在**原视频编辑器**中扩展 A-roll 主讲、B-roll 辅助素材、包装三条独立轨道，空轨也显示；支持选择、拖动、修改时长、撤销重做和保存。 |
+| **分段画面布局** | 支持屏幕全屏、人物全屏、屏幕＋人物画中画、左右分屏。人物相关布局需要摄像头素材。 |
+| **B-roll 辅助素材** | 导入本地视频或图片，全屏覆盖或画中画展示；随关联主讲片段移动、分割、裁剪和变速。素材声音默认静音，可显式开启。 |
+| **独立包装幕** | 提供片头、章节卡、观点卡、片尾及图片包装，占用独立成片时间；期间主讲画面与声音暂停，独立配乐可继续。 |
+| **CLI 与 MCP** | 查询元素稳定 ID、应用结构化剪辑方案、校验工程、生成截图或短预览、导出 MP4；与 GUI 共用编排规则。 |
+| **字幕与口播剪辑** | 支持 TranscribeKit 与 Whisper 引擎；增强音频归一化和 TranscribeKit 分段识别，支持按字幕时间分割、保留口播片段。TranscribeKit 需要另行安装其 CLI。 |
+| **工程工作流** | 启动页支持最近工程搜索、开始录制和打开工程；工程文件被外部修改后重新加载；摄像头只在录制时启动。 |
+| **预览与导出** | 完整帧在后台绘制完成后再显示，修复播放交替闪黑；编排片段支持 **0.125～16 倍速**，导出同时核验本次成功报告与实际媒体文件。 |
+
+### 开始使用三轨编排
+
+在原编辑器中打开录制，进入侧栏 **“镜头与素材”**，启用镜头编排。选择主讲片段调整布局，导入 B-roll，或插入包装幕；继续使用原有时间线、播放、保存、撤销和导出入口。保存的 `.recordly` 工程可以再次精修。
+
+自动化剪辑需要 **Node.js 22.18 或以上**，先构建渲染器：
+
+```bash
+npm install
+npx vite build --config vite.config.ts
+node cli/bin/recordly.mjs project inspect input.recordly
+node cli/bin/recordly.mjs project apply input.recordly --plan edit.json -o composed.recordly
+node cli/bin/recordly.mjs project validate composed.recordly
+node cli/bin/recordly.mjs project preview composed.recordly --at 3500 -o frame.png
+node cli/bin/recordly.mjs render composed.recordly -o result.mp4 --json
+```
+
+按[编排方案示例与 v3 工程说明](docs/composition.md)编写 `edit.json`。新工程接口的时间统一使用**毫秒**；应用方案会输出新工程，不覆盖输入。录制命令与 Agent 接入见 [CLI / MCP 使用说明](cli/README.md)。
+
+### 当前状态与边界
+
+上述更新已进入 **本 Fork 的 main 分支**，Release 安装包可能落后于源码。新增编排能力当前以 **macOS 和 MP4** 为主要验证环境；保留上游 Windows/Linux 功能，但尚未完成新组合工程在这些平台的完整验证。
+
+- 保持“一段主录屏＋同步人像”；同一时刻最多显示一个 B-roll，另有独立包装幕。
+- 旧工程可以继续读取；从旧格式首次保存为 v3 时保留旧版备份。
+- 新组合工程采用现代渲染链路和确定性的经典缩放计算；暂不包含复杂布局转场、任意多层视频或 v3 工程的 GIF 导出。
+- AI 内容理解、素材选择和剪辑决策由外部工具承担，软件未内置 AI 自动粗剪。
+- 验证方式：运行 `npm test`；构建后运行 `npm run test:composition-export`，用合成素材检查真实 MP4 导出、声音行为及截图与导出的一致性。
+
+以下内容及截图主要介绍继承自上游的基础能力，不全部代表 Fork 新增的三轨界面。
+
+---
+
 ### 无需额外剪辑，也能做出精致的屏幕录制。
 [Recordly](https://www.recordly.dev) 是一款**开源屏幕录制器**和编辑器，适合制作**操作讲解、演示、产品视频**等内容。  
 **欢迎提交 PR。** [赞助](https://ko-fi.com/webadderall/goal?g=0)
@@ -168,11 +217,13 @@ Recordly 拥有一个社区驱动的扩展系统。任何人都可以构建和�
 
 预构建发布版本请见：
 
-https://github.com/webadderallorg/Recordly/releases
+https://github.com/scottzx/Recordly/releases
 
 ---
 
 ## Arch Linux / Manjaro（yay）
+
+该社区包跟随上游，不保证包含本 Fork 的更新。
 
 可通过 AUR 安装（[recordly-bin](https://aur.archlinux.org/packages/recordly-bin)）：
 
@@ -188,6 +239,8 @@ PKGBUILD、桌面入口、发布同步，以及可选的**本地源码打包**�
 
 ### 前置依赖
 
+**Node.js：** 本 Fork 的 CLI / 工程命令需要 22.18 或以上。
+
 **macOS：** 安装 Xcode Command Line Tools（`xcode-select --install`）。
 
 **Linux（Ubuntu / Debian）：**
@@ -201,7 +254,7 @@ sudo apt install build-essential cmake libx11-dev libxtst-dev libxrandr-dev libx
 ### 步骤
 
 ```bash
-git clone https://github.com/webadderallorg/Recordly.git recordly
+git clone https://github.com/scottzx/Recordly.git recordly
 cd recordly
 npm install
 npm run dev
@@ -358,7 +411,7 @@ Recordly 将平台相关的捕获层与基于渲染器的编辑、导出流程�
 
 问题反馈和功能建议：
 
-https://github.com/webadderallorg/Recordly/issues
+https://github.com/scottzx/Recordly/issues
 
 欢迎提交 Pull Request。
 

@@ -9,6 +9,55 @@ Language: EN | [简中](README.zh-CN.md)
   <img src="https://img.shields.io/badge/open%20source-AGPL3.0-2563eb?style=for-the-badge" alt="AGPL 3.0 license" />
 </p>
 
+## About this fork
+
+This repository is [scottzx/Recordly](https://github.com/scottzx/Recordly), a fork of [webadderallorg/Recordly](https://github.com/webadderallorg/Recordly). It builds on the upstream recorder and editor with a focus on **narrated screen recordings, three-track composition, captions, and CLI-driven editing**. The upstream project and contributors retain their credit; the AGPL-3.0 license remains unchanged.
+
+### What this fork adds
+
+| Area | Changes in this fork |
+| --- | --- |
+| **Three-track editing** | A-roll, B-roll, and packaging have separate, always-visible lanes in the **existing video editor**, with selection, dragging, duration editing, undo/redo, and project saving. |
+| **Per-clip layouts** | Screen fullscreen, presenter fullscreen, screen with presenter picture-in-picture, and split screen. Presenter layouts require webcam footage. |
+| **B-roll** | Import local videos and images for fullscreen or picture-in-picture display. B-roll follows its linked main clip through moves, splits, trims, and speed changes; its audio is muted by default and can be enabled. |
+| **Standalone cards** | Intro, chapter, quote, outro, and image cards occupy their own timeline time. Main footage and speech pause during cards; independent music can continue. |
+| **CLI and MCP** | Inspect stable element IDs, apply structured edit plans, validate projects, generate screenshots or short previews, and export MP4. GUI, CLI, and MCP share composition rules. |
+| **Captions and speech editing** | TranscribeKit and Whisper engine support, normalized audio and chunked TranscribeKit recognition, plus splitting and keeping clips using subtitle timestamps. TranscribeKit requires its CLI to be installed separately. |
+| **Project workflow** | A launch workspace with recent-project search and recording/open actions; reload externally edited project files; start the webcam only while recording. |
+| **Playback and export** | Complete frames are composed offscreen before display to prevent playback flashing. Composition clips support **0.125×–16×** speed; export checks both the current success report and the output media. |
+
+### Try the new composition workflow
+
+Open a recording in the original editor and choose **镜头与素材** (composition settings) in the sidebar. Enable composition, select a main clip to change its layout, import B-roll, or insert a card. Projects remain editable as `.recordly` files.
+
+For automation, use **Node.js 22.18+** and build the renderer first:
+
+```bash
+npm install
+npx vite build --config vite.config.ts
+node cli/bin/recordly.mjs project inspect input.recordly
+node cli/bin/recordly.mjs project apply input.recordly --plan edit.json -o composed.recordly
+node cli/bin/recordly.mjs project validate composed.recordly
+node cli/bin/recordly.mjs project preview composed.recordly --at 3500 -o frame.png
+node cli/bin/recordly.mjs render composed.recordly -o result.mp4 --json
+```
+
+Create `edit.json` using the [composition plan examples and v3 project documentation](docs/composition.md). All new project-command times are in **milliseconds**. Apply writes a new project rather than overwriting its input. See the [CLI and MCP guide](cli/README.md) for recording and agent integration.
+
+### Status and current scope
+
+These additions are in **this fork's main branch**; a release installer may lag behind the source. The primary validation target for the new composition workflow is **macOS and MP4**. Upstream Windows/Linux functionality is retained, but the new combinations are not yet fully verified on those platforms.
+
+- One main screen recording with synchronized webcam footage, one visible B-roll layer at a time, and standalone cards.
+- Legacy projects remain readable; the first save from an older format to v3 keeps an old-version backup.
+- New compositions use the modern renderer and deterministic classic zoom evaluation. Complex layout transitions, arbitrary video layers, and GIF export for v3 compositions are outside the current scope.
+- AI content understanding and edit decisions come from external tools; this fork does not include an automatic AI editor.
+- Verification: `npm test`; after building, `npm run test:composition-export` checks real MP4 rendering with synthetic media, audio behavior, and screenshot/export consistency.
+
+The sections and screenshots below describe inherited upstream features; they do not all depict this fork's new three-track interface.
+
+---
+
 ### Create polished demo videos in minutes
 [Recordly](https://www.recordly.dev) is your **open-source screen recorder** and editor for **walkthroughs, demos, product videos**, and more. 
 **Accepting PRs.**
@@ -172,11 +221,13 @@ Browse and install community extensions from the [Recordly Marketplace](https://
 
 Prebuilt releases are available at:
 
-https://github.com/webadderallorg/Recordly/releases
+https://github.com/scottzx/Recordly/releases
 
 ---
 
 ## Arch Linux / Manjaro (yay)
+
+This community package tracks upstream and does not necessarily include this fork's changes.
 
 Install from the AUR ([recordly-bin](https://aur.archlinux.org/packages/recordly-bin)):
 
@@ -192,6 +243,8 @@ PKGBUILD, desktop entry, release sync, and optional **local-from-source** packag
 
 ### Prerequisites
 
+**Node.js:** 22.18+ for the fork's CLI/project commands.
+
 **macOS:** Xcode Command Line Tools (`xcode-select --install`).
 
 **Linux (Ubuntu/Debian):**
@@ -205,7 +258,7 @@ sudo apt install build-essential cmake libx11-dev libxtst-dev libxrandr-dev libx
 ### Steps
 
 ```bash
-git clone https://github.com/webadderallorg/Recordly.git recordly
+git clone https://github.com/scottzx/Recordly.git recordly
 cd recordly
 npm install
 npm run dev
@@ -362,7 +415,7 @@ See `CONTRIBUTING.md` for guidelines.
 
 Bug reports and feature requests:
 
-https://github.com/webadderallorg/Recordly/issues
+https://github.com/scottzx/Recordly/issues
 
 Pull requests are welcome.
 
