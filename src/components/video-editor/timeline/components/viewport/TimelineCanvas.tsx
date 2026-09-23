@@ -483,6 +483,7 @@ const TimelineCanvasRows = memo(function TimelineCanvasRows({
 	const {
 		clipItems,
 		brollItems,
+		sourceRows,
 		packagingItems,
 		zoomItems,
 		captionItems,
@@ -494,10 +495,17 @@ const TimelineCanvasRows = memo(function TimelineCanvasRows({
 		const packagingItems: TimelineRenderItem[] = [];
 		const nextZoomItems: TimelineRenderItem[] = [];
 		const nextCaptionItems: TimelineRenderItem[] = [];
+		const sourceBuckets = new Map<string, TimelineRenderItem[]>();
 		const annotationBuckets = new Map<number, TimelineRenderItem[]>();
 		const audioBuckets = new Map<number, TimelineRenderItem[]>();
 
 		for (const item of items) {
+			if (item.rowId.startsWith("row-composition-")) {
+				const bucket = sourceBuckets.get(item.rowId) ?? [];
+				bucket.push(item);
+				sourceBuckets.set(item.rowId, bucket);
+				continue;
+			}
 			if (item.rowId === BROLL_ROW_ID) {
 				brollItems.push(item);
 				continue;
@@ -548,6 +556,7 @@ const TimelineCanvasRows = memo(function TimelineCanvasRows({
 
 		return {
 			clipItems: nextClipItems,
+			sourceRows: [...sourceBuckets.entries()],
 			brollItems,
 			packagingItems,
 			zoomItems: nextZoomItems,
@@ -561,7 +570,7 @@ const TimelineCanvasRows = memo(function TimelineCanvasRows({
 		<>
 			<Row
 				id={CLIP_ROW_ID}
-				label="A-roll · 主讲"
+				label="A-roll · 主讲段落"
 				labelColor="#60a5fa"
 				isEmpty={clipItems.length === 0}
 				hint={HINT_CLIP}
@@ -582,6 +591,28 @@ const TimelineCanvasRows = memo(function TimelineCanvasRows({
 					</Item>
 				))}
 			</Row>
+			{sourceRows.map(([rowId, rowItems]) => (
+				<Row
+					key={rowId}
+					id={rowId}
+					label={rowItems[0].rowLabel}
+					labelColor={rowId === "row-composition-view" ? "#fbbf24" : "#93c5fd"}
+				>
+					{rowItems.map((item) => (
+						<Item
+							key={item.id}
+							id={item.id}
+							rowId={rowId}
+							span={item.span}
+							variant={item.variant}
+							isSelected={item.id === selectedAnnotationId}
+							onSelectId={onSelectAnnotation}
+						>
+							{item.label}
+						</Item>
+					))}
+				</Row>
+			))}
 			<Row
 				id={BROLL_ROW_ID}
 				label="B-roll · 辅助素材"
@@ -1002,8 +1033,10 @@ export default function TimelineCanvas({
 	const timelineRowCount = useMemo(() => {
 		const annotationRowIds = new Set<string>();
 		const audioRowIds = new Set<string>();
+		const sourceRowIds = new Set<string>();
 		let hasCaptionRow = false;
 		for (const item of items) {
+			if (item.rowId.startsWith("row-composition-")) sourceRowIds.add(item.rowId);
 			if (isAnnotationTrackRowId(item.rowId)) annotationRowIds.add(item.rowId);
 			if (isAudioTrackRowId(item.rowId)) audioRowIds.add(item.rowId);
 			if (item.rowId === CAPTION_ROW_ID) hasCaptionRow = true;
@@ -1013,11 +1046,26 @@ export default function TimelineCanvas({
 		// exists), so count it whenever captionsEnabled — not only when a caption item is
 		// present — or the min-height/stretch math undersizes the empty lane.
 		const captionRows = hasCaptionRow || captionsEnabled ? 1 : 0;
-		return 4 + sourceAudioRows + annotationRowIds.size + audioRowIds.size + captionRows;
+		return (
+			4 +
+			sourceRowIds.size +
+			sourceAudioRows +
+			annotationRowIds.size +
+			audioRowIds.size +
+			captionRows
+		);
 	}, [items, showSourceAudioTrack, sourceAudioTracks.length, captionsEnabled]);
-	const timelineRowsMinHeightPx = getTimelineRowsMinHeightPx(timelineRowCount) + 48;
-	const timelineContentMinHeightPx = getTimelineContentMinHeightPx(timelineRowCount) + 48;
-	const timelineViewportStretchFactor = getTimelineViewportStretchFactor(timelineRowCount);
+	const sourceRowCount = new Set(
+		items.filter((item) => item.rowId.startsWith("row-composition-")).map((item) => item.rowId),
+	).size;
+	const labelHeight = 48 + sourceRowCount * 18;
+	const timelineRowsMinHeightPx = getTimelineRowsMinHeightPx(timelineRowCount) + labelHeight;
+	const timelineContentMinHeightPx =
+		getTimelineContentMinHeightPx(timelineRowCount) + labelHeight;
+	// Expanded recording sources need compact lanes; legacy timelines keep their zoomed rows.
+	const timelineViewportStretchFactor = sourceRowCount
+		? 1
+		: getTimelineViewportStretchFactor(timelineRowCount);
 	const sideProperty = direction === "rtl" ? "right" : "left";
 	const {
 		canShowGhostPlayhead,

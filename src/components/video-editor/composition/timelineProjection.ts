@@ -104,3 +104,59 @@ export function sourceSpanAtOutput(span: { start: number; end: number }, composi
 			(Math.min(span.end, entry.endMs) - entry.startMs) * entry.shot.speed,
 	};
 }
+
+export function sourceTimelineRegions(
+	composition: Composition,
+	expanded = true,
+): AnnotationRegion[] {
+	return timeline(composition).flatMap(({ shot, startMs }) => {
+		if (shot.kind !== "main") return [];
+		const make = (
+			item: { id: string; offsetMs: number; durationMs: number },
+			rowId: string,
+			rowLabel: string,
+			content: string,
+			sourceKind?: AnnotationRegion["compositionSourceKind"],
+		): AnnotationRegion => ({
+			id: item.id,
+			startMs: startMs + item.offsetMs,
+			endMs: startMs + item.offsetMs + item.durationMs,
+			timelineRole: "source",
+			compositionRowId: rowId,
+			compositionRowLabel: rowLabel,
+			compositionSourceKind: sourceKind,
+			type: "text",
+			content,
+			position: DEFAULT_ANNOTATION_POSITION,
+			size: DEFAULT_ANNOTATION_SIZE,
+			style: DEFAULT_ANNOTATION_STYLE,
+			zIndex: 0,
+		});
+		return [
+			...(shot.views ?? []).map((view) =>
+				make(
+					view,
+					"row-composition-view",
+					"镜头编排",
+					view.layers
+						.map(
+							(layer) =>
+								composition.sources?.find((s) => s.id === layer.sourceId)?.name ??
+								"",
+						)
+						.join("＋") || "空画面",
+				),
+			),
+			...(expanded ? (shot.sourceClips ?? []) : []).map((clip) => {
+				const source = composition.sources?.find((s) => s.id === clip.sourceId);
+				return make(
+					clip,
+					`row-composition-source-${clip.sourceId}`,
+					source?.name ?? "素材",
+					`${clip.linked ? "同步" : "独立"} · ${source?.name ?? "素材"}${clip.muted && source?.kind === "audio" ? " · 静音" : ""}`,
+					source?.kind,
+				);
+			}),
+		];
+	});
+}

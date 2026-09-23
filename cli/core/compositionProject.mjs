@@ -69,13 +69,18 @@ export async function validateMedia(project) {
 		if (s.kind === "main") {
 			if (main && s.sourceEndMs > main.durationMs + 40)
 				errors.push(`Main clip exceeds its source: ${s.id}`);
-			if (s.layout.mode !== "screen") {
+			if (!s.views && s.layout.mode !== "screen") {
 				const webcam = metadata.get(project.editor.webcam?.sourcePath);
-				const end = s.sourceEndMs - (project.editor.webcam?.timeOffsetMs ?? 0);
-				if (webcam && (!webcam.hasVideo || end > webcam.durationMs + 40))
-					errors.push(`Presenter source does not cover clip: ${s.id}`);
+				if (webcam && !webcam.hasVideo)
+					errors.push(`Presenter source has no video stream: ${s.id}`);
 			}
 		}
+	for (const source of project.composition.sources ?? []) {
+		const asset = project.composition.assets.find((a) => a.id === source.assetId);
+		const meta = metadata.get(asset?.path);
+		if (meta && source.kind !== "audio" && !meta.hasVideo)
+			errors.push(`Source has no video stream: ${source.id}`);
+	}
 	for (const b of project.composition.broll) {
 		const asset = project.composition.assets.find((a) => a.id === b.assetId),
 			m = asset && metadata.get(asset.path);

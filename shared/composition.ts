@@ -1,3 +1,11 @@
+import {
+	sliceSourceClips,
+	sliceViews,
+	validateSourceEditing,
+	type SyncedSource,
+	type SourceClip,
+	type ViewClip,
+} from "./compositionSources.ts";
 import type { EditorProjectData } from "../src/components/video-editor/projectPersistence.ts";
 import type { CropRegion } from "../src/components/video-editor/types.ts";
 
@@ -21,6 +29,8 @@ export interface Asset {
 	hasAudio?: boolean;
 }
 export interface MainShot {
+	sourceClips?: SourceClip[];
+	views?: ViewClip[];
 	id: string;
 	kind: "main";
 	sourceStartMs: number;
@@ -61,6 +71,7 @@ export interface BRoll {
 	crop?: CropRegion;
 }
 export interface Composition {
+	sources?: SyncedSource[];
 	assets: Asset[];
 	shots: Shot[];
 	broll: BRoll[];
@@ -77,6 +88,7 @@ export interface EditPlan {
 }
 export type Operation =
 	| { type: "split"; clipId: string; offsetMs: number }
+	| { type: "split-source" | "split-view"; clipId: string; id: string; offsetMs: number }
 	| { type: "trim"; clipId: string; sourceStartMs: number; sourceEndMs: number }
 	| { type: "speed"; clipId: string; speed: number }
 	| { type: "layout"; clipId: string; layout: Layout }
@@ -201,8 +213,32 @@ function split(composition: Composition, clipId: string, offsetMs: number) {
 	composition.shots.splice(
 		index,
 		1,
-		{ ...shot, sourceEndMs: point },
-		{ ...shot, id: rightId, sourceStartMs: point },
+		{
+			...shot,
+			sourceEndMs: point,
+			...(shot.sourceClips
+				? { sourceClips: sliceSourceClips(shot.sourceClips, 0, offsetMs) }
+				: {}),
+			...(shot.views ? { views: sliceViews(shot.views, 0, offsetMs) } : {}),
+		},
+		{
+			...shot,
+			id: rightId,
+			sourceStartMs: point,
+			...(shot.sourceClips
+				? {
+						sourceClips: sliceSourceClips(
+							shot.sourceClips,
+							offsetMs,
+							shotDuration(shot),
+							`:${rightId}`,
+						),
+					}
+				: {}),
+			...(shot.views
+				? { views: sliceViews(shot.views, offsetMs, shotDuration(shot), `:${rightId}`) }
+				: {}),
+		},
 	);
 	composition.broll = composition.broll.flatMap((b) => {
 		if (b.clipId !== clipId) return [b];
@@ -227,7 +263,19 @@ function split(composition: Composition, clipId: string, offsetMs: number) {
 	});
 }
 export function applyOperation(composition: Composition, op: Operation): Composition {
-	if (!["split", "insert-card", "move", "remove", "layout", "speed", "trim"].includes(op.type))
+	if (
+		![
+			"split",
+			"split-source",
+			"split-view",
+			"insert-card",
+			"move",
+			"remove",
+			"layout",
+			"speed",
+			"trim",
+		].includes(op.type)
+	)
 		throw new Error("Unknown edit operation");
 	const c = structuredClone(composition);
 	if (op.type === "split") split(c, op.clipId, op.offsetMs);
@@ -253,7 +301,33 @@ export function applyOperation(composition: Composition, op: Operation): Composi
 	} else {
 		const shot = c.shots.find((s) => s.id === op.clipId);
 		if (!shot || shot.kind !== "main") throw new Error(`Unknown main clip: ${op.clipId}`);
-		if (op.type === "layout") shot.layout = op.layout;
+		if (op.type === "split-source" || op.type === "split-view") {
+			const items = op.type === "split-source" ? shot.sourceClips : shot.views;
+			const index = items?.findIndex((item) => item.id === op.id) ?? -1;
+			if (!items || index < 0) throw new Error("Unknown source/view clip");
+			const item = items[index],
+				delta = op.offsetMs - item.offsetMs;
+			if (!(delta > 0 && delta < item.durationMs))
+				throw new Error("Split must be inside the selected source/view clip");
+			const right = {
+				...item,
+				id: `${item.id}:split:${op.offsetMs}`,
+				offsetMs: op.offsetMs,
+				durationMs: item.durationMs - delta,
+			};
+			if ("sourceStartMs" in right) right.sourceStartMs += delta * right.speed;
+			// Both arrays retain their own homogeneous item type.
+			(items as (SourceClip | ViewClip)[]).splice(
+				index,
+				1,
+				{ ...item, durationMs: delta },
+				right,
+			);
+		}
+		if (op.type === "layout") {
+			if (shot.views) throw new Error("Edit the view clip layout in source editing mode");
+			shot.layout = op.layout;
+		}
 		if (op.type === "speed") {
 			if (!(op.speed > 0 && op.speed <= 16)) throw new Error("Speed must be > 0 and <= 16");
 			const ratio = shot.speed / op.speed;
@@ -267,6 +341,19 @@ export function applyOperation(composition: Composition, op: Operation): Composi
 						}
 					: b,
 			);
+			if (shot.sourceClips)
+				shot.sourceClips = shot.sourceClips.map((clip) => ({
+					...clip,
+					offsetMs: clip.offsetMs * ratio,
+					durationMs: clip.durationMs * ratio,
+					speed: clip.speed / ratio,
+				}));
+			if (shot.views)
+				shot.views = shot.views.map((view) => ({
+					...view,
+					offsetMs: view.offsetMs * ratio,
+					durationMs: view.durationMs * ratio,
+				}));
 			shot.speed = op.speed;
 		}
 		if (op.type === "trim") {
@@ -293,6 +380,8 @@ export function applyOperation(composition: Composition, op: Operation): Composi
 							},
 						];
 			});
+			if (shot.sourceClips) shot.sourceClips = sliceSourceClips(shot.sourceClips, from, to);
+			if (shot.views) shot.views = sliceViews(shot.views, from, to);
 			shot.sourceStartMs = op.sourceStartMs;
 			shot.sourceEndMs = op.sourceEndMs;
 		}
@@ -347,7 +436,7 @@ export function validateComposition(project: CompositionProject): string[] {
 				errors.push(`Invalid source range/speed: ${s.id}`);
 			if (!s.layout || !["screen", "presenter", "pip", "split"].includes(s.layout.mode))
 				errors.push(`Invalid layout: ${s.id}`);
-			else if (s.layout.mode !== "screen" && !project.editor.webcam?.sourcePath)
+			else if (!s.views && s.layout.mode !== "screen" && !project.editor.webcam?.sourcePath)
 				errors.push(`Presenter source required: ${s.id}`);
 			if (
 				s.volume !== undefined &&
@@ -457,6 +546,7 @@ export function validateComposition(project: CompositionProject): string[] {
 		.sort((a, b) => a.start - b.start);
 	for (let i = 1; i < spans.length; i++)
 		if (spans[i].start < spans[i - 1].end - 0.01) errors.push("B-roll regions overlap");
+	errors.push(...validateSourceEditing(project));
 	return errors;
 }
 export function audioSegments(project: CompositionProject) {
@@ -475,7 +565,7 @@ export function audioSegments(project: CompositionProject) {
 			project.editor.sourceAudioTrackSettingsByClip?.[s.id] ??
 			project.editor.defaultSourceAudioTrackSettings;
 		const gain = (settings?.mixed?.volume ?? 1) * (settings?.mixed?.normalize ? 1.35 : 1);
-		if (!s.muted)
+		if (!s.muted && !s.sourceClips)
 			segments.push({
 				path: project.videoPath,
 				startMs: entry.startMs,
@@ -484,6 +574,39 @@ export function audioSegments(project: CompositionProject) {
 				speed: s.speed,
 				volume: (s.volume ?? 1) * gain,
 			});
+		if (!s.muted)
+			for (const clip of s.sourceClips ?? []) {
+				if (clip.muted) continue;
+				const source = project.composition.sources?.find(
+					(source) => source.id === clip.sourceId,
+				);
+				const asset = project.composition.assets.find(
+					(asset) => asset.id === source?.assetId,
+				);
+				if (!asset) continue;
+				const lead = Math.max(0, -clip.sourceStartMs / clip.speed);
+				const duration =
+					Math.min(
+						clip.durationMs,
+						asset.durationMs === undefined
+							? Infinity
+							: (asset.durationMs - clip.sourceStartMs) / clip.speed,
+					) - lead;
+				if (duration > 0)
+					segments.push({
+						path: asset.path,
+						startMs: entry.startMs + clip.offsetMs + lead,
+						sourceStartMs: Math.max(0, clip.sourceStartMs),
+						durationMs: duration,
+						speed: clip.speed,
+						volume:
+							clip.volume *
+							(s.volume ?? 1) *
+							(source?.kind === "audio" && asset.path === project.videoPath
+								? gain
+								: 1),
+					});
+			}
 		for (const b of project.composition.broll.filter((b) => b.clipId === s.id && !b.muted)) {
 			const a = project.composition.assets.find((a) => a.id === b.assetId);
 			if (a?.kind === "video")

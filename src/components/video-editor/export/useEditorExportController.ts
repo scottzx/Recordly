@@ -1,4 +1,5 @@
 import type { RefObject } from "react";
+import { durationMs } from "../../../../shared/composition";
 import type { useI18n } from "@/contexts/I18nContext";
 import type { useVideoEditorAudio } from "../audio/useVideoEditorAudio";
 import type { getSmokeExportConfig } from "../smokeExportConfig";
@@ -79,7 +80,10 @@ export function useEditorExportController(input: Input) {
 	useSmokeExportAutomation({
 		config: input.smokeConfig,
 		cursorTelemetrySourcePath: input.cursorTelemetrySourcePath,
-		duration: input.duration,
+		// Composition preview can be ready before the legacy video metadata arrives.
+		duration: input.compositionProject
+			? durationMs(input.compositionProject.composition) / 1000
+			: input.duration,
 		error: input.error,
 		isPreviewReady: input.isPreviewReady,
 		loading: input.loading,

@@ -1,3 +1,5 @@
+import { NumberField } from "./NumberField";
+import { SourceEditingPanel } from "./SourceEditingPanel";
 import { toast } from "sonner";
 import {
 	timeline,
@@ -15,49 +17,6 @@ const layoutNames: Record<LayoutMode, string> = {
 	pip: "屏幕＋人像",
 	split: "左右分屏",
 };
-function NumberField({
-	label,
-	value,
-	onChange,
-	min = 0,
-	max,
-	step = 1,
-}: {
-	label: string;
-	value: number;
-	onChange: (n: number) => void;
-	min?: number;
-	max?: number;
-	step?: number;
-}) {
-	return (
-		<label>
-			{label}
-			<input
-				aria-label={label}
-				type="number"
-				key={value}
-				defaultValue={Number(value.toFixed(3))}
-				min={min}
-				max={max}
-				step={step}
-				onBlur={(e) => {
-					const n = Number(e.target.value);
-					if (
-						Number.isFinite(n) &&
-						n >= min &&
-						(max === undefined || n <= max) &&
-						n !== value
-					)
-						onChange(n);
-				}}
-				onKeyDown={(e) => {
-					if (e.key === "Enter") e.currentTarget.blur();
-				}}
-			/>
-		</label>
-	);
-}
 export function CompositionSettingsPanel() {
 	const controller = useCompositionContext();
 	if (!controller) return null;
@@ -105,7 +64,9 @@ export function CompositionSettingsPanel() {
 				: timeline(c).find(
 						(e) => e.shot.kind === "main" && time >= e.startMs && time < e.endMs,
 					)?.shot;
-		const asset = c.assets.find((a) => a.kind !== "audio");
+		const asset = c.assets.find(
+			(a) => a.kind !== "audio" && !c.sources?.some((source) => source.assetId === a.id),
+		);
 		if (!shot || !asset) {
 			setError("先导入视频或图片，再选择主讲片段。");
 			return;
@@ -168,7 +129,8 @@ export function CompositionSettingsPanel() {
 		<div className="composition-settings w-[280px] overflow-y-auto rounded-xl bg-card p-4 text-sm">
 			<fieldset>
 				<h2>镜头与素材</h2>
-				{!project.editor.webcam?.sourcePath && (
+				<SourceEditingPanel />
+				{!c.sources && !project.editor.webcam?.sourcePath && (
 					<p>当前工程未关联人像素材。请先在摄像头面板导入，才能使用人物布局。</p>
 				)}
 				<button onClick={() => void addAsset().catch((e) => setError(String(e)))}>
@@ -192,11 +154,11 @@ export function CompositionSettingsPanel() {
 						))}
 					</select>
 				</label>
-				{!selectedShot && !selectedBroll && (
+				{!selectedShot && !selectedBroll && !c.sources && (
 					<p>在时间线上选择片段，调整布局、时长和属性。</p>
 				)}
 
-				{selectedShot && (
+				{selectedShot && !(selectedShot.kind === "main" && selectedShot.sourceClips) && (
 					<>
 						<h2>{selectedShot.kind === "main" ? "主讲片段" : "包装幕"}</h2>
 						<small>{selectedShot.id}</small>
@@ -626,7 +588,7 @@ export function CompositionSettingsPanel() {
 						</button>
 					</>
 				)}
-				<h2>辅助素材</h2>
+				<h2>素材库</h2>
 				{c.assets.map((a) => (
 					<p key={a.id}>
 						{a.kind} · {a.path.split(/[\\/]/).pop()}

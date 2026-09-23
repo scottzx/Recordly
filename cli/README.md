@@ -17,6 +17,50 @@ Built for **AI Agents, CI/CD pipelines, and automated developer walkthroughs**:
 
 ## 🚀 Quick Start
 
+### Installed macOS app (no Node.js or Xcode required)
+
+Move `Recordly.app` to `/Applications` before installing the terminal command.
+In the app menu, choose **Recordly → Install ‘recordly’ Command…**, or run:
+
+```bash
+/Applications/Recordly.app/Contents/Resources/cli/recordly --install
+```
+
+This creates `~/.local/bin/recordly` without administrator privileges and refuses
+to replace an unrelated existing command. If `~/.local/bin` is not on your PATH,
+add `export PATH="$HOME/.local/bin:$PATH"` to `~/.zshrc` and reopen the terminal.
+You can always use the full app CLI path without installing the command.
+
+```bash
+recordly --help
+recordly doctor --json
+recordly project inspect input.recordly
+recordly render input.recordly -o output.mp4 --json
+recordly mcp
+```
+
+Installed builds include the CLI runtime, recording daemon, native helpers,
+FFmpeg and FFprobe. Exports use temporary profiles so the desktop app can remain
+open. Recording still requires macOS Screen Recording permission; microphone
+and accessibility permissions apply to the corresponding recording features.
+`doctor --json` reports `recordingReady` and `exportReady` separately: an exit
+code of 1 due to recording permission does not prevent exporting existing media.
+
+For an MCP client, use the full path (GUI clients may not inherit shell PATH):
+
+```json
+{
+  "mcpServers": {
+    "recordly": {
+      "command": "/Applications/Recordly.app/Contents/Resources/cli/recordly",
+      "args": ["mcp"]
+    }
+  }
+}
+```
+
+The source-checkout commands below still require Node.js 22.18+ and built dependencies.
+
 ### 1. Preflight Check
 ```bash
 ./cli/bin/recordly.mjs doctor

@@ -475,7 +475,10 @@ export function getDefaultCaptionFontFamily() {
 
 export interface AnnotationRegion {
 	/** View-only classification for the dedicated auxiliary media lane. */
-	timelineRole?: "broll";
+	timelineRole?: "broll" | "source";
+	compositionRowId?: string;
+	compositionRowLabel?: string;
+	compositionSourceKind?: "screen" | "camera" | "audio";
 	id: string;
 	startMs: number;
 	endMs: number;

@@ -1,5 +1,6 @@
 import { spawnSync } from "node:child_process";
 import { existsSync } from "node:fs";
+import path from "node:path";
 import { createRequire } from "node:module";
 import { app } from "electron";
 
@@ -139,6 +140,13 @@ export function getFfmpegBinaryPath(): string {
 }
 
 export function getFfprobeBinaryPath(): string {
+	if (process.platform === "darwin") {
+		const nativeRoot = app.isPackaged
+			? path.join(process.resourcesPath, "app.asar.unpacked")
+			: app.getAppPath();
+		const nativeProbe = path.join(nativeRoot, "electron", "native", "bin", `darwin-${process.arch}`, "ffprobe");
+		if (existsSync(nativeProbe)) return nativeProbe;
+	}
 	const ffprobeStatic = loadFfprobeStatic();
 	if (ffprobeStatic && typeof ffprobeStatic === "string") {
 		const bundledPath = app.isPackaged

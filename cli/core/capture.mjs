@@ -2,7 +2,7 @@ import { spawn } from "node:child_process";
 import fs from "node:fs/promises";
 import net from "node:net";
 import path from "node:path";
-import { getDefaultRecordingsDir, getSessionsDir, repoRoot } from "./paths.mjs";
+import { getDefaultRecordingsDir, getSessionsDir, cliRoot } from "./paths.mjs";
 import { getLatestActiveSession, getSession } from "./session.mjs";
 
 function sendSocketCommand(socketPath, command, timeoutMs = 15000) {
@@ -64,7 +64,7 @@ export async function startRecording(options = {}) {
 		capturesMicrophone: Boolean(options.mic),
 	};
 
-	const daemonScript = path.join(repoRoot, "cli", "daemon", "recordingDaemon.mjs");
+	const daemonScript = path.join(cliRoot, "daemon", "recordingDaemon.mjs");
 	const daemon = spawn(process.execPath, [daemonScript, JSON.stringify(config)], {
 		detached: true,
 		stdio: "ignore",

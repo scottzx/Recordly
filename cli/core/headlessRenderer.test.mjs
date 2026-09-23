@@ -74,6 +74,19 @@ it("accepts a new nonempty output and saved report", async () => {
 		await report();
 	})).resolves.toMatchObject({ success: true, outputPath });
 });
+it("clears Electron's Node-only mode before launching the renderer", async () => {
+	vi.stubEnv("ELECTRON_RUN_AS_NODE", "1");
+	try {
+		await run(async () => {
+			await fs.writeFile(outputPath, "video");
+			await report();
+		});
+		expect(spawn.mock.lastCall[2].env).not.toHaveProperty("ELECTRON_RUN_AS_NODE");
+		expect(process.env.ELECTRON_RUN_AS_NODE).toBe("1");
+	} finally {
+		vi.unstubAllEnvs();
+	}
+});
 it("rejects signals", async () => {
 	await expect(run(async () => child.emit("close", null, "SIGTERM"))).rejects.toThrow(/SIGTERM/);
 });

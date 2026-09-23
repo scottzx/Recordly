@@ -1,7 +1,9 @@
+import { findSourceItem } from "../../../../shared/compositionSources";
 import { useMemo } from "react";
 import { useCompositionContext } from "../composition/useCompositionEditing";
 import {
 	brollTimelineRegions,
+	sourceTimelineRegions,
 	projectSourceRegions,
 	sourceRegionSpan,
 	sourceSpanAtOutput,
@@ -72,17 +74,21 @@ export function EditorTimelinePanel(props: Props) {
 			c
 				? [
 						...brollTimelineRegions(c),
+						...sourceTimelineRegions(c, composition?.sourcesExpanded),
 						...projectSourceRegions(timeline.annotationRegions, c),
 					]
 				: timeline.annotationRegions,
-		[c, timeline.annotationRegions],
+		[c, timeline.annotationRegions, composition?.sourcesExpanded],
 	);
 	const visualZooms = useMemo(
 		() => (c ? projectSourceRegions(timeline.zoomRegions, c) : timeline.zoomRegions),
 		[c, timeline.zoomRegions],
 	);
 	return (
-		<div className="flex flex-shrink-0 flex-col" style={{ height: "25%", minHeight: 240 }}>
+		<div
+			className="flex flex-shrink-0 flex-col"
+			style={{ height: c?.sources ? "35%" : "25%", minHeight: c?.sources ? 300 : 240 }}
+		>
 			<TimelineEditor
 				sequenceMode={Boolean(c)}
 				ref={timelineRef}
@@ -130,7 +136,11 @@ export function EditorTimelinePanel(props: Props) {
 				onClipSplit={clipCommands.handleClipSplit}
 				onClipDelete={clipCommands.handleClipDelete}
 				onClipSpanChange={clipCommands.handleClipSpanChange}
-				selectedClipId={timeline.selectedClipId}
+				selectedClipId={
+					c && !c.shots.some((shot) => shot.id === timeline.selectedClipId)
+						? null
+						: timeline.selectedClipId
+				}
 				onSelectClip={clipCommands.handleSelectClip}
 				audioRegions={timeline.audioRegions}
 				onAudioAdded={audioCommands.handleAudioAdded}
@@ -180,6 +190,10 @@ export function EditorTimelinePanel(props: Props) {
 						annotationCommands.handleAnnotationAdded(mapped, c ? (track ?? 0) : track);
 				}}
 				onAnnotationSpanChange={(id, span, track) => {
+					if (composition?.project && findSourceItem(composition.project, id)) {
+						composition.sourceSpan(id, span);
+						return;
+					}
 					const b = c?.broll.find((b) => b.id === id);
 					if (b && c && composition) {
 						const entry = compositionEntries(c).find((e) => e.shot.id === b.clipId)!;
@@ -204,6 +218,10 @@ export function EditorTimelinePanel(props: Props) {
 					} else annotationCommands.handleAnnotationSpanChange(id, span, track);
 				}}
 				onAnnotationDelete={(id) => {
+					if (composition?.project && findSourceItem(composition.project, id)) {
+						composition.removeSourceItem(id);
+						return;
+					}
 					if (c?.broll.some((b) => b.id === id) && composition?.project)
 						composition.commit({
 							...composition.project,
@@ -215,7 +233,9 @@ export function EditorTimelinePanel(props: Props) {
 						);
 				}}
 				selectedAnnotationId={
-					c?.broll.some((b) => b.id === timeline.selectedClipId)
+					c?.broll.some((b) => b.id === timeline.selectedClipId) ||
+					(composition?.project &&
+						findSourceItem(composition.project, timeline.selectedClipId))
 						? timeline.selectedClipId
 						: (visualAnnotations.find((a) =>
 								c
@@ -224,7 +244,11 @@ export function EditorTimelinePanel(props: Props) {
 							)?.id ?? null)
 				}
 				onSelectAnnotation={(id) => {
-					if (c?.broll.some((b) => b.id === id)) composition?.select(id);
+					if (
+						c?.broll.some((b) => b.id === id) ||
+						(composition?.project && findSourceItem(composition.project, id))
+					)
+						composition?.select(id);
 					else handleSelectAnnotation(c && id ? id.slice(0, id.lastIndexOf("::")) : id);
 				}}
 				showSourceAudioTrack={timeline.clipRegions.some((clip) => clip.showSourceAudio)}

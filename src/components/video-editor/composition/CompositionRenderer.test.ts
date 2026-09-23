@@ -1,14 +1,18 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import type { CompositionProject } from "../../../../shared/composition";
 
-vi.mock("@/lib/exporter/modernFrameRenderer", () => ({ FrameRenderer: class {} }));
+vi.mock("@/lib/exporter/modernFrameRenderer", () => ({
+	FrameRenderer: class {
+		async initialize() {}
+	},
+}));
 vi.mock("@/lib/exporter/muxer", () => ({ VideoMuxer: class {} }));
 vi.mock("@/lib/exporter/annotationRenderer", () => ({
 	preloadAnnotationAssets: vi.fn(),
 	renderAnnotations: vi.fn(),
 }));
 vi.mock("../projectPersistence", () => ({
-	normalizeProjectEditor: () => ({}),
+	normalizeProjectEditor: (editor: unknown) => editor,
 	resolveVideoUrl: async (path: string) => path,
 }));
 import { CompositionRenderer } from "./CompositionRenderer";
@@ -104,5 +108,56 @@ describe("composition frame presentation", () => {
 		// Outside the sequence is a complete background frame; it needs no decoder.
 		await renderer.render(4000);
 		expect(visible.drawImage).toHaveBeenCalledTimes(1);
+	});
+});
+
+describe("presenter source duration", () => {
+	it.each([
+		"presenter",
+		"pip",
+		"split",
+	] as const)("accepts a shorter webcam in %s layout", async (mode) => {
+		setup();
+		const project = {
+			version: 3,
+			videoPath: "main.mp4",
+			editor: { webcam: { sourcePath: "webcam.mp4", timeOffsetMs: 100 } },
+			composition: {
+				width: 100,
+				height: 100,
+				fps: 30,
+				assets: [],
+				broll: [],
+				shots: [
+					{
+						id: "clip-1",
+						kind: "main",
+						sourceStartMs: 0,
+						sourceEndMs: 3000,
+						speed: 1,
+						layout: { mode },
+					},
+				],
+			},
+		} as unknown as CompositionProject;
+		vi.stubGlobal("window", {
+			electronAPI: {
+				compositionProbe: vi.fn(async (file: string) => ({
+					durationMs: file === "main.mp4" ? 3000 : 2000,
+					width: 100,
+					height: 100,
+					hasAudio: false,
+				})),
+				getCursorTelemetry: vi.fn(async () => ({ success: false })),
+			},
+		});
+		const renderer = new CompositionRenderer(project);
+		const sample = { displayWidth: 100, displayHeight: 100, close: vi.fn() };
+		// Replace decoding only; exercise real initialization and media validation.
+		vi.spyOn(
+			renderer as unknown as { sample: () => Promise<typeof sample> },
+			"sample",
+		).mockResolvedValue(sample);
+		await expect(renderer.initialize()).resolves.toBeUndefined();
 	});
 });

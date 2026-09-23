@@ -2,7 +2,7 @@ import { spawn } from "node:child_process";
 import fs from "node:fs/promises";
 import net from "node:net";
 import path from "node:path";
-import { getNativeBinaryPath, repoRoot } from "../core/paths.mjs";
+import { getNativeBinaryPath } from "../core/paths.mjs";
 import { saveSession } from "../core/session.mjs";
 
 const configRaw = process.argv[2];
@@ -52,7 +52,7 @@ if (target?.type === "window" && target?.id) {
 }
 
 const sckHelperBinary = getNativeBinaryPath("recordly-screencapturekit-helper");
-const cursorTrackerBinary = path.join(repoRoot, "cli", "native", "bin", "recordly-cursor-tracker");
+const cursorTrackerBinary = getNativeBinaryPath("recordly-cursor-tracker");
 
 // Spawn SCK Recorder
 const recorderProcess = spawn(sckHelperBinary, [JSON.stringify(sckConfig)], {

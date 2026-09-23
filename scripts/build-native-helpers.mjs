@@ -27,6 +27,14 @@ function getTargetConfigs() {
 
 const helpers = [
 	{
+		source: "../../cli/native/CursorTracker.swift",
+		output: "recordly-cursor-tracker",
+	},
+	{
+		source: "CliPermissions.swift",
+		output: "recordly-cli-permissions",
+	},
+	{
 		source: "ScreenCaptureKitRecorder.swift",
 		output: "recordly-screencapturekit-helper",
 	},

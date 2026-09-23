@@ -8,6 +8,7 @@ import { runMark } from "../commands/mark.mjs";
 import { runRender } from "../commands/render.mjs";
 import { projectCommand } from "../core/compositionProject.mjs";
 import { runMcpServer } from "../mcp/server.mjs";
+import { getCliVersion } from "../core/paths.mjs";
 
 const argv = process.argv.slice(2);
 
@@ -83,7 +84,7 @@ async function main() {
 	}
 
 	if (argv.includes("-v") || argv.includes("--version")) {
-		console.log("recordly-cli v1.5.0-beta.1");
+		console.log(`recordly-cli v${getCliVersion()}`);
 		process.exit(0);
 	}
 

@@ -1,3 +1,4 @@
+import { sourceSceneAt } from "../../../../shared/compositionSources";
 import { ALL_FORMATS, Input, UrlSource, VideoSampleSink, type VideoSample } from "mediabunny";
 import {
 	sceneAt,
@@ -5,6 +6,7 @@ import {
 	validateComposition,
 	type CompositionProject,
 	type Card,
+	type MainShot,
 } from "../../../../shared/composition";
 import { FrameRenderer } from "@/lib/exporter/modernFrameRenderer";
 import { VideoMuxer } from "@/lib/exporter/muxer";
@@ -84,6 +86,13 @@ export class CompositionRenderer {
 				throw new Error(`Main source ends before clip ${shot.id}`);
 		for (const asset of this.project.composition.assets) {
 			const meta = await window.electronAPI.compositionProbe(asset.path);
+			if (
+				this.project.composition.sources?.some(
+					(source) => source.assetId === asset.id && source.kind !== "audio",
+				) &&
+				(!meta.width || !meta.height)
+			)
+				throw new Error(`Source has no video stream: ${asset.id}`);
 			for (const b of this.project.composition.broll.filter((b) => b.assetId === asset.id))
 				if (
 					asset.kind === "video" &&
@@ -93,19 +102,16 @@ export class CompositionRenderer {
 		}
 		if (
 			this.project.composition.shots.some(
-				(s) => s.kind === "main" && s.layout.mode !== "screen",
+				(s) => s.kind === "main" && !s.views && s.layout.mode !== "screen",
 			)
 		) {
 			const webcam = await window.electronAPI.compositionProbe(
 				this.editor.webcam.sourcePath!,
 			);
-			for (const shot of this.project.composition.shots)
-				if (
-					shot.kind === "main" &&
-					shot.layout.mode !== "screen" &&
-					shot.sourceEndMs - this.editor.webcam.timeOffsetMs > webcam.durationMs + 40
-				)
-					throw new Error(`Presenter source ends before clip ${shot.id}`);
+			if (!webcam.width || !webcam.height)
+				throw new Error("Presenter source has no video stream");
+			// Webcam recordings can end before the screen recording. VideoSampleSink
+			// holds the last sample for later timestamps, matching the legacy preview.
 		}
 		const main = await this.sample(this.project.videoPath, 0);
 		const telemetry = await window.electronAPI.getCursorTelemetry(this.project.videoPath);
@@ -130,6 +136,53 @@ export class CompositionRenderer {
 		main.close();
 		await this.base.initialize();
 		this.annotations = await preloadAnnotationAssets(this.editor.annotationRegions);
+	}
+	private async sourceLayers(shot: MainShot, localMs: number) {
+		for (const { layer, source, asset, timeMs } of sourceSceneAt(this.project, shot, localMs)) {
+			const sample = await this.sample(asset.path, timeMs);
+			try {
+				let image: CanvasImageSource | VideoSample = sample;
+				if (source.kind === "screen" && asset.path === this.project.videoPath) {
+					const frame = sample.toVideoFrame();
+					try {
+						await this.base!.renderFrame(
+							frame,
+							timeMs * 1000,
+							timeMs * 1000,
+							1e6 / this.project.composition.fps,
+							timeMs * 1000,
+						);
+					} finally {
+						frame.close();
+					}
+					image = this.base!.getCanvas();
+				}
+				let x = layer.x * this.canvas.width,
+					y = layer.y * this.canvas.height;
+				let width = layer.width * this.canvas.width,
+					height = layer.height * this.canvas.height;
+				if (layer.fit === "contain") {
+					const sw =
+						image instanceof HTMLCanvasElement ? image.width : sample.displayWidth;
+					const sh =
+						image instanceof HTMLCanvasElement ? image.height : sample.displayHeight;
+					const aspect =
+						(sw * (layer.crop?.width ?? 1)) / (sh * (layer.crop?.height ?? 1));
+					if (width / height > aspect) {
+						const next = height * aspect;
+						x += (width - next) / 2;
+						width = next;
+					} else {
+						const next = width / aspect;
+						y += (height - next) / 2;
+						height = next;
+					}
+				}
+				this.draw(image, x, y, width, height, layer.crop, layer.mirror, layer.roundness);
+			} finally {
+				sample.close();
+			}
+		}
 	}
 	private draw(
 		source: CanvasImageSource | VideoSample,
@@ -270,11 +323,13 @@ export class CompositionRenderer {
 	render(timeMs: number): Promise<HTMLCanvasElement> {
 		// Decode and compose offscreen; never expose a partially drawn frame.
 		// Refreshes and playback can request frames concurrently.
-		const frame = this.pending.catch(() => undefined).then(async () => {
-			await this.renderFrame(timeMs);
-			this.output.drawImage(this.staging, 0, 0);
-			return this.canvas;
-		});
+		const frame = this.pending
+			.catch(() => undefined)
+			.then(async () => {
+				await this.renderFrame(timeMs);
+				this.output.drawImage(this.staging, 0, 0);
+				return this.canvas;
+			});
 		this.pending = frame;
 		return frame;
 	}
@@ -293,7 +348,9 @@ export class CompositionRenderer {
 		const layout = scene.shot.layout,
 			sourceMs = scene.sourceMs!,
 			b = scene.broll;
-		if (b?.mode !== "fullscreen") {
+		if (b?.mode !== "fullscreen" && scene.shot.views) {
+			await this.sourceLayers(scene.shot, scene.localMs);
+		} else if (b?.mode !== "fullscreen") {
 			if (layout.mode !== "presenter") {
 				const sample = await this.sample(this.project.videoPath, sourceMs),
 					frame = sample.toVideoFrame();

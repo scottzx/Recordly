@@ -90,12 +90,20 @@ export function buildTimelineItems(params: {
 	const annotations: TimelineRenderItem[] = annotationRegions.map((region) => ({
 		id: region.id,
 		rowId:
-			region.timelineRole === "broll"
-				? BROLL_ROW_ID
-				: getAnnotationTrackRowId(region.trackIndex ?? 0),
+			region.timelineRole === "source" && region.compositionRowId
+				? region.compositionRowId
+				: region.timelineRole === "broll"
+					? BROLL_ROW_ID
+					: getAnnotationTrackRowId(region.trackIndex ?? 0),
 		span: { start: region.startMs, end: region.endMs },
 		label: getAnnotationLabel(region),
-		variant: "annotation",
+		rowLabel: region.compositionRowLabel,
+		variant:
+			region.compositionSourceKind === "audio"
+				? "audio"
+				: region.compositionSourceKind
+					? "clip"
+					: "annotation",
 	}));
 
 	const audios: TimelineRenderItem[] = audioRegions.map((region) => ({

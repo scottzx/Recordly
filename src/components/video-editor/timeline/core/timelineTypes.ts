@@ -28,6 +28,7 @@ export interface TimelineShortcutBindings {
 }
 
 export interface TimelineRenderItem {
+	rowLabel?: string;
 	id: string;
 	rowId: string;
 	span: Span;

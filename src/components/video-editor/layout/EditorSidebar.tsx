@@ -1,3 +1,4 @@
+import { useCompositionContext } from "../composition/useCompositionEditing";
 import { CompositionSettingsPanel } from "../composition/CompositionSettingsPanel";
 import {
 	Camera,
@@ -25,6 +26,7 @@ type Props = {
 };
 
 export function EditorSidebar({ t, activeSection, setActiveSection, settingsPanelProps }: Props) {
+	const sourceEditing = Boolean(useCompositionContext()?.project?.composition.sources);
 	const sections = useMemo(
 		() => [
 			{ id: "composition" as const, label: "镜头与素材", icon: Camera },
@@ -52,53 +54,63 @@ export function EditorSidebar({ t, activeSection, setActiveSection, settingsPane
 	return (
 		<div className="flex flex-shrink-0 gap-1.5">
 			<div className="flex flex-shrink-0 flex-col items-center gap-0.5 px-2 py-2">
-				{sections.map((section) => {
-					const isActive = activeSection === section.id;
-					return (
-						<div key={section.id} className="flex items-center">
-							<motion.button
-								type="button"
-								onClick={() => setActiveSection(section.id)}
-								title={section.label}
-								className="group relative flex h-9 w-9 items-center justify-center rounded-lg outline-none focus:outline-none focus-visible:outline-none"
-								animate={{ opacity: isActive ? 1 : 0.55 }}
-								transition={{ duration: 0.14 }}
-							>
-								{isActive ? (
-									<motion.span
-										layoutId="rail-active-bg"
-										className="absolute inset-0 rounded-lg bg-foreground/[0.08]"
-										transition={{ type: "spring", stiffness: 450, damping: 35 }}
-									/>
-								) : null}
-								<motion.span
-									className="relative z-10"
-									animate={{
-										color: isActive ? "#2563EB" : "hsl(var(--foreground))",
-									}}
+				{sections
+					.filter((section) => !sourceEditing || section.id !== "webcam")
+					.map((section) => {
+						const isActive = activeSection === section.id;
+						return (
+							<div key={section.id} className="flex items-center">
+								<motion.button
+									type="button"
+									onClick={() => setActiveSection(section.id)}
+									title={section.label}
+									className="group relative flex h-9 w-9 items-center justify-center rounded-lg outline-none focus:outline-none focus-visible:outline-none"
+									animate={{ opacity: isActive ? 1 : 0.55 }}
 									transition={{ duration: 0.14 }}
 								>
-									<section.icon
-										className="h-[27px] w-[27px]"
-										weight={isActive ? "fill" : "regular"}
-									/>
-								</motion.span>
-							</motion.button>
-							<div className="ml-1.5 h-1.5 w-1.5 flex-shrink-0">
-								{isActive ? (
+									{isActive ? (
+										<motion.span
+											layoutId="rail-active-bg"
+											className="absolute inset-0 rounded-lg bg-foreground/[0.08]"
+											transition={{
+												type: "spring",
+												stiffness: 450,
+												damping: 35,
+											}}
+										/>
+									) : null}
 									<motion.span
-										layoutId="rail-active-dot"
-										className="block h-1.5 w-1.5 rounded-full bg-[#2563EB]"
-										initial={{ opacity: 0, scale: 0.5 }}
-										animate={{ opacity: 1, scale: 1 }}
-										exit={{ opacity: 0, scale: 0.5 }}
-										transition={{ type: "spring", stiffness: 500, damping: 32 }}
-									/>
-								) : null}
+										className="relative z-10"
+										animate={{
+											color: isActive ? "#2563EB" : "hsl(var(--foreground))",
+										}}
+										transition={{ duration: 0.14 }}
+									>
+										<section.icon
+											className="h-[27px] w-[27px]"
+											weight={isActive ? "fill" : "regular"}
+										/>
+									</motion.span>
+								</motion.button>
+								<div className="ml-1.5 h-1.5 w-1.5 flex-shrink-0">
+									{isActive ? (
+										<motion.span
+											layoutId="rail-active-dot"
+											className="block h-1.5 w-1.5 rounded-full bg-[#2563EB]"
+											initial={{ opacity: 0, scale: 0.5 }}
+											animate={{ opacity: 1, scale: 1 }}
+											exit={{ opacity: 0, scale: 0.5 }}
+											transition={{
+												type: "spring",
+												stiffness: 500,
+												damping: 32,
+											}}
+										/>
+									) : null}
+								</div>
 							</div>
-						</div>
-					);
-				})}
+						);
+					})}
 				<div className="mt-auto flex flex-col items-center gap-0.5 pt-3">
 					<motion.button
 						type="button"
@@ -115,7 +127,7 @@ export function EditorSidebar({ t, activeSection, setActiveSection, settingsPane
 					</motion.button>
 				</div>
 			</div>
-			{activeSection === "composition" ? (
+			{activeSection === "composition" || (sourceEditing && activeSection === "webcam") ? (
 				<CompositionSettingsPanel />
 			) : activeSection === "extensions" ? (
 				<ExtensionManager />

@@ -38,6 +38,7 @@
     "!LICENSE"
   ],
   "extraResources": [
+    { "from": "dist-cli", "to": "cli" },
     {
       "from": "public/wallpapers",
       "to": "assets/wallpapers"

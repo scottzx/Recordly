@@ -11,6 +11,8 @@
 
 ## 关于这个 Fork
 
+macOS 签名与 DMG 打包：运行 `npm run package:mac`，详见[打包工作流](docs/macos-packaging.md)。
+
 本仓库是 [scottzx/Recordly](https://github.com/scottzx/Recordly)，基于 [webadderallorg/Recordly](https://github.com/webadderallorg/Recordly) 持续开发，重点增强 **口播＋录屏讲解、三轨编排、字幕和 CLI 自动化剪辑**。保留上游项目与贡献者署名，继续使用 AGPL-3.0 许可证。
 
 ### Fork 版本新增了什么
@@ -30,7 +32,9 @@
 
 在原编辑器中打开录制，进入侧栏 **“镜头与素材”**，启用镜头编排。选择主讲片段调整布局，导入 B-roll，或插入包装幕；继续使用原有时间线、播放、保存、撤销和导出入口。保存的 `.recordly` 工程可以再次精修。
 
-自动化剪辑需要 **Node.js 22.18 或以上**，先构建渲染器：
+macOS 安装版已内置 CLI，无需另装 Node.js。在应用菜单选择 **Recordly → Install ‘recordly’ Command…** 后，按提示配置 PATH，即可运行 `recordly`；详细步骤见 [CLI 使用说明](cli/README.md)。
+
+从源码运行自动化剪辑需要 **Node.js 22.18 或以上**，先构建渲染器：
 
 ```bash
 npm install

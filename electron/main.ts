@@ -1,4 +1,5 @@
 import fs from "node:fs/promises";
+import { execFile } from "node:child_process";
 import path from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import {
@@ -439,6 +440,21 @@ function setupApplicationMenu() {
 			label: app.name,
 			submenu: [
 				{ role: "about" },
+				{
+					label: "Install ‘recordly’ Command…",
+					enabled: app.isPackaged,
+					click: () => {
+						const launcher = path.join(process.resourcesPath, "cli", "recordly");
+						execFile(launcher, ["--install"], (error, stdout, stderr) => {
+							void dialog.showMessageBox({
+								type: error ? "error" : "info",
+								title: "Recordly CLI",
+								message: error ? "Could not install recordly" : "recordly command installed",
+								detail: error ? stderr || error.message : stdout,
+							});
+						});
+					},
+				},
 				{ type: "separator" },
 				{ role: "services" },
 				{ type: "separator" },

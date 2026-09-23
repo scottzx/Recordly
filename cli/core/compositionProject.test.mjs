@@ -4,7 +4,7 @@ import os from "node:os";
 import path from "node:path";
 import { execFileSync } from "node:child_process";
 import { getFfmpegPath } from "./paths.mjs";
-import { projectCommand } from "./compositionProject.mjs";
+import { projectCommand, validateMedia } from "./compositionProject.mjs";
 let dir, input;
 beforeAll(async () => {
 	dir = await fs.mkdtemp(path.join(os.tmpdir(), "recordly-composition-test-"));
@@ -100,4 +100,12 @@ it("reports missing external assets and refuses replacing the input", async () =
 			},
 		}),
 	).rejects.toThrow(/Missing/);
+});
+
+it("allows a presenter shorter than the clip after applying its recording offset", async () => {
+	const project = await projectCommand("inspect", input);
+	project.version = 3;
+	project.editor.webcam = { sourcePath: path.join(dir, "main.mp4"), timeOffsetMs: -500 };
+	project.composition.shots[0].layout = { mode: "pip" };
+	expect(await validateMedia(project)).toMatchObject({ valid: true, errors: [] });
 });

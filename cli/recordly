@@ -1,0 +1,30 @@
+#!/bin/bash
+set -euo pipefail
+
+# Resolve the installed symlink, including app paths containing spaces.
+launcher="${BASH_SOURCE[0]}"
+while [[ -L "$launcher" ]]; do
+  directory="$(cd -P "$(dirname "$launcher")" && pwd)"
+  launcher="$(readlink "$launcher")"
+  [[ "$launcher" == /* ]] || launcher="$directory/$launcher"
+done
+directory="$(cd -P "$(dirname "$launcher")" && pwd)"
+launcher="$directory/$(basename "$launcher")"
+
+if [[ "${1:-}" == --install ]]; then
+  destination="$HOME/.local/bin/recordly"
+  mkdir -p "$(dirname "$destination")"
+  if [[ -e "$destination" || -L "$destination" ]]; then
+    if [[ ! -L "$destination" || "$(readlink "$destination")" != "$launcher" ]]; then
+      echo "Cannot replace existing command: $destination. Remove it or choose the app's full CLI path." >&2
+      exit 1
+    fi
+  else
+    ln -s "$launcher" "$destination"
+  fi
+  printf 'Installed: %s\n' "$destination"
+  printf 'If recordly is not found, add this line to ~/.zshrc (or your shell profile):\nexport PATH="$HOME/.local/bin:$PATH"\n'
+  exit 0
+fi
+
+exec env ELECTRON_RUN_AS_NODE=1 "$directory/../../MacOS/Recordly" "$directory/bin/recordly.mjs" "$@"

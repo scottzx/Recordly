@@ -1,12 +1,21 @@
 import fs from "node:fs/promises";
+import { existsSync } from "node:fs";
+import { createRequire } from "node:module";
 import os from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import ffmpegStatic from "ffmpeg-static";
-import ffprobeStatic from "ffprobe-static";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
-export const repoRoot = path.resolve(__dirname, "..", "..");
+const root = path.resolve(__dirname, "..", "..");
+export const isPackagedCli = existsSync(path.join(root, "app.asar"));
+export const repoRoot = isPackagedCli ? path.join(root, "app.asar") : root;
+export const cliRoot = path.join(root, "cli");
+const nodeRequire = createRequire(path.join(repoRoot, "package.json"));
+const unpack = (file) => file.replace(/\.asar([/\\])/, ".asar.unpacked$1");
+
+export function getCliVersion() {
+	return nodeRequire("./package.json").version;
+}
 
 export function getPlatformArchTag() {
 	const platform = process.platform;
@@ -22,18 +31,20 @@ export function getPlatformArchTag() {
 
 export function getNativeBinaryPath(binaryName) {
 	const archTag = getPlatformArchTag();
-	return path.join(repoRoot, "electron", "native", "bin", archTag, binaryName);
+	return unpack(path.join(repoRoot, "electron", "native", "bin", archTag, binaryName));
 }
 
 export function getFfmpegPath() {
-	return ffmpegStatic;
+	return unpack(nodeRequire("ffmpeg-static"));
 }
 
 export function getFfprobePath() {
-	return ffprobeStatic?.path || "ffprobe";
+	const native = getNativeBinaryPath("ffprobe");
+	return existsSync(native) ? native : unpack(nodeRequire("ffprobe-static").path);
 }
 
 export function getElectronBinaryPath() {
+	if (isPackagedCli) return process.execPath;
 	if (process.platform === "darwin") {
 		return path.join(
 			repoRoot,
@@ -47,6 +58,12 @@ export function getElectronBinaryPath() {
 		);
 	}
 	return path.join(repoRoot, "node_modules", "electron", "dist", "electron");
+}
+
+export function getRendererLaunch() {
+	const env = { ...process.env };
+	delete env.ELECTRON_RUN_AS_NODE;
+	return { executable: getElectronBinaryPath(), args: isPackagedCli ? [] : [repoRoot], env };
 }
 
 export function getSessionsDir() {

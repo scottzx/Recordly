@@ -7,13 +7,15 @@ import { execFile } from 'node:child_process';
 import { promisify } from 'node:util';
 import { projectCommand, probeMedia } from '../cli/core/compositionProject.mjs';
 import { renderProject } from '../cli/core/headlessRenderer.mjs';
+import { enableSourceEditing, createSourceClip, resizeView } from '../shared/compositionSources.ts';
+import { applyOperation } from '../shared/composition.ts';
 import { getFfmpegPath } from '../cli/core/paths.mjs';
 const run=promisify(execFile), dir=await fs.mkdtemp(path.join(os.tmpdir(),'recordly-composition-check-'));
 const file=name=>path.join(dir,name);
 const ffmpeg=async args=>run(getFfmpegPath(),['-v','error','-y',...args],{maxBuffer:8*1024*1024});
 try {
  await ffmpeg(['-f','lavfi','-i','testsrc2=size=640x360:rate=30','-f','lavfi','-i','sine=frequency=440:sample_rate=48000','-t','8','-c:v','libx264','-pix_fmt','yuv420p','-c:a','aac',file('main.mp4')]);
- await ffmpeg(['-f','lavfi','-i','color=blue:size=320x320:rate=30','-t','8','-c:v','libx264',file('face.mp4')]);
+ await ffmpeg(['-f','lavfi','-i','color=blue:size=320x320:rate=30','-t','2','-c:v','libx264',file('face.mp4')]);
  await ffmpeg(['-f','lavfi','-i','color=red:size=640x360:rate=30','-f','lavfi','-i','sine=frequency=660:sample_rate=48000','-t','3','-c:v','libx264','-c:a','aac',file('broll.mp4')]);
  await ffmpeg(['-f','lavfi','-i','color=green:size=320x180','-frames:v','1',file('image.png')]);
  await fs.writeFile(file('input.recordly'),JSON.stringify({version:2,videoPath:file('main.mp4'),editor:{webcam:{sourcePath:file('face.mp4'),enabled:true},clipRegions:[{id:'main',startMs:0,endMs:8000,speed:1}]}}));
@@ -26,8 +28,8 @@ try {
  assert.equal(report.report.success,true);
  const meta=await probeMedia(file('output.mp4'));
  assert.ok(meta.hasAudio&&meta.hasVideo);assert.ok(Math.abs(meta.durationMs-9000)<80);
- const pixel=async(t,x,y)=>{
-  const {stdout}=await run(getFfmpegPath(),['-v','error','-ss',String(t),'-i',file('output.mp4'),'-vf',`format=rgb24,crop=1:1:${x}:${y}`,'-frames:v','1','-f','rawvideo','-'],{encoding:'buffer'});
+ const pixel=async(t,x,y, video='output.mp4')=>{
+  const {stdout}=await run(getFfmpegPath(),['-v','error','-ss',String(t),'-i',file(video),'-vf',`format=rgb24,crop=1:1:${x}:${y}`,'-frames:v','1','-f','rawvideo','-'],{encoding:'buffer'});
   return [...stdout.subarray(0,3)];
  };
  const isBlue=([r,g,b])=>b>180&&r<40&&g<40;
@@ -51,5 +53,49 @@ try {
  const similarity=await run(getFfmpegPath(),['-i',file('preview.png'),'-i',file('export.png'),'-lavfi','psnr','-f','null','-']);
  const average=similarity.stderr.match(/average:([\d.]+|inf)/)?.[1];
  assert.ok(average==='inf'||Number(average)>35,`Preview/export image mismatch: ${average}`);
- console.log(JSON.stringify({success:true,durationMs:meta.durationMs,checks:['four layouts','video and image B-roll','card silence','continuous main audio','muted and enabled B-roll audio','CLI screenshot matches exported frame']},null,2));
+
+ // Independent source tracks: two cameras, continuous main audio and delayed mic.
+ const legacy=JSON.parse(await fs.readFile(file('composed.recordly'),'utf8'));
+ legacy.composition.shots=[{id:'talk',kind:'main',sourceStartMs:0,sourceEndMs:8000,speed:1,layout:{mode:'pip'}}];
+ legacy.composition.broll=[];
+ const multi=enableSourceEditing(legacy);
+ const camera2={id:'camera2',assetId:'video',name:'Camera 2',kind:'camera',timeOffsetMs:0};
+ const mic={id:'mic',assetId:'video',name:'Separate mic',kind:'audio',timeOffsetMs:2000};
+ multi.composition.sources.push(camera2,mic);
+ multi.composition.assets.find(a=>a.id==='video').durationMs=3000;
+ let group=multi.composition.shots[0];
+ group.sourceClips.push(createSourceClip(group,camera2),{...createSourceClip(group,mic),volume:.5});
+ multi.composition=applyOperation(multi.composition,{type:'split-view',clipId:'talk',id:group.views[0].id,offsetMs:3000});
+ group=multi.composition.shots[0];
+ multi.composition=applyOperation(multi.composition,{type:'split-view',clipId:'talk',id:group.views[1].id,offsetMs:5000});
+ group=multi.composition.shots[0];
+ const firstCamera=multi.composition.sources.find(s=>s.kind==='camera');
+ group.views[0].layers=[{sourceId:firstCamera.id,x:0,y:0,width:1,height:1}];
+ group.views[1].layers=[{sourceId:camera2.id,x:0,y:0,width:1,height:1}];
+ group.views[2].layers=[{sourceId:multi.composition.sources.find(s=>s.kind==='screen').id,x:0,y:0,width:1,height:1},
+  {sourceId:firstCamera.id,x:0,y:0,width:.3,height:.3},
+  {sourceId:camera2.id,x:.7,y:.7,width:.3,height:.3}];
+ multi.composition.shots[0]=resizeView(group,group.views[1].id,2500,5000);
+ await fs.writeFile(file('multitrack.recordly'),JSON.stringify(multi));
+ assert.equal((await projectCommand('validate',file('multitrack.recordly'))).valid,true);
+ await renderProject({projectPath:file('multitrack.recordly'),outputPath:file('multitrack.mp4'),fps:30,timeoutMs:180000});
+ assert.ok(isBlue(await pixel(2.3,320,180,'multitrack.mp4')),'Short camera must hold its last frame');
+ const switched=await pixel(2.7,320,180,'multitrack.mp4');
+ assert.ok(switched[0]>180&&switched[1]<40&&switched[2]<40,'Rolled cut must switch to camera 2 without a group cut');
+ assert.ok(isBlue(await pixel(6,60,50,'multitrack.mp4')),'First camera overlay must remain independently positioned');
+ const layered=await pixel(6,600,320,'multitrack.mp4');
+ assert.ok(layered[0]>180&&layered[1]<40&&layered[2]<40,'Second camera overlay must hold its own final frame');
+ await ffmpeg(['-i',file('multitrack.mp4'),'-vn','-ac','1','-ar','48000','-f','f32le',file('multi-audio.raw')]);
+ const multiPcm=await fs.readFile(file('multi-audio.raw'));
+ const multiSamples=(start,end)=>Array.from({length:Math.floor((end-start)*48000)},(_,i)=>multiPcm.readFloatLE((Math.floor(start*48000)+i)*4));
+ assert.ok(tone(multiSamples(2.3,2.8),440)>.05,'Main audio must remain continuous across camera cuts');
+ assert.ok(tone(multiSamples(2.3,2.8),660)>.01,'Independent mic must mix at its sync offset');
+ assert.ok(tone(multiSamples(1,1.5),660)<.001,'Delayed mic must not play early');
+ assert.ok(tone(multiSamples(6,6.5),660)<.001,'Ended mic must not hold or repeat audio');
+ await projectCommand('preview',file('multitrack.recordly'),{at:6000,output:file('multi-preview.png')});
+ await ffmpeg(['-ss','6','-i',file('multitrack.mp4'),'-frames:v','1',file('multi-export.png')]);
+ const multiSimilarity=await run(getFfmpegPath(),['-i',file('multi-preview.png'),'-i',file('multi-export.png'),'-lavfi','psnr','-f','null','-']);
+ const multiAverage=multiSimilarity.stderr.match(/average:([\d.]+|inf)/)?.[1];
+ assert.ok(multiAverage==='inf'||Number(multiAverage)>35,`Multitrack preview/export mismatch: ${multiAverage}`);
+ console.log(JSON.stringify({success:true,durationMs:meta.durationMs,checks:['four layouts','video and image B-roll','card silence','continuous main audio','muted and enabled B-roll audio','CLI screenshot matches exported frame','independent camera cuts and three visual layers','short camera holds last frame','independent delayed mic mix','multitrack preview/export parity']},null,2));
 } finally { await fs.rm(dir,{recursive:true,force:true}); }

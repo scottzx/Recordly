@@ -1,4 +1,9 @@
-import { createContext, useContext, useMemo } from "react";
+import {
+	enableSourceEditing,
+	findSourceItem,
+	resizeView,
+} from "../../../../shared/compositionSources";
+import { createContext, useContext, useMemo, useState } from "react";
 import { toast } from "sonner";
 import {
 	applyOperation,
@@ -14,6 +19,15 @@ import { createProjectData, type ProjectEditorState } from "../projectPersistenc
 import type { useTimelineState } from "../state/useTimelineState";
 import type { EditorEffectSection } from "../types";
 import type { Span } from "dnd-timeline";
+
+async function probeSourceMetadata(project: CompositionProject) {
+	const ids = new Set(project.composition.sources?.map((source) => source.assetId));
+	for (const asset of project.composition.assets)
+		if (ids.has(asset.id)) {
+			const meta = await window.electronAPI.compositionProbe(asset.path);
+			Object.assign(asset, meta);
+		}
+}
 
 export function useCompositionEditing({
 	state,
@@ -34,6 +48,7 @@ export function useCompositionEditing({
 		() => (source ? createProjectData(source, editor) : null),
 		[source, editor],
 	);
+	const [sourcesExpanded, setSourcesExpanded] = useState(true);
 	const composed = project?.composition ? (project as CompositionProject) : null;
 	const commit = (next: CompositionProject) => {
 		const errors = validateComposition(next);
@@ -82,6 +97,49 @@ export function useCompositionEditing({
 				broll: composed.composition.broll.map((s) => (s.id === b.id ? b : s)),
 			},
 		});
+	const sourceSpan = (id: string, span: Span) => {
+		if (!composed) return;
+		const selected = findSourceItem(composed, id);
+		if (!selected) return;
+		const entry = entries(composed.composition).find((e) => e.shot.id === selected.shot.id)!;
+		const start = span.start - entry.startMs,
+			end = span.end - entry.startMs;
+		try {
+			if (selected.view) changeShot(resizeView(selected.shot, id, start, end));
+			else if (selected.clip) {
+				const clip = selected.clip;
+				const moving = Math.abs(end - start - clip.durationMs) < 0.01;
+				changeShot({
+					...selected.shot,
+					sourceClips: selected.shot.sourceClips!.map((c) =>
+						c.id !== id
+							? c
+							: {
+									...c,
+									offsetMs: start,
+									durationMs: end - start,
+									linked: moving ? false : c.linked,
+									sourceStartMs:
+										c.sourceStartMs +
+										(moving ? 0 : start - c.offsetMs) * c.speed,
+								},
+					),
+				});
+			}
+		} catch (e) {
+			toast.error(String(e));
+		}
+	};
+	const removeSourceItem = (id: string) => {
+		if (!composed) return;
+		const selected = findSourceItem(composed, id);
+		if (selected)
+			changeShot({
+				...selected.shot,
+				sourceClips: selected.shot.sourceClips?.filter((c) => c.id !== id),
+				views: selected.shot.views?.filter((v) => v.id !== id),
+			});
+	};
 	const span = (id: string, span: Span) => {
 		if (!composed) return;
 		const all = entries(composed.composition),
@@ -109,6 +167,19 @@ export function useCompositionEditing({
 	};
 	const split = (at: number) => {
 		if (!composed) return;
+		const selected = findSourceItem(composed, state.selectedClipId);
+		if (selected) {
+			const entry = entries(composed.composition).find(
+				(e) => e.shot.id === selected.shot.id,
+			)!;
+			operation({
+				type: selected.clip ? "split-source" : "split-view",
+				clipId: selected.shot.id,
+				id: (selected.clip ?? selected.view)!.id,
+				offsetMs: at - entry.startMs,
+			});
+			return;
+		}
 		const e = entries(composed.composition).find(
 			(e) => e.shot.kind === "main" && at > e.startMs && at < e.endMs,
 		);
@@ -116,6 +187,20 @@ export function useCompositionEditing({
 	};
 	return {
 		project: composed,
+		sourcesExpanded,
+		setSourcesExpanded,
+		sourceSpan,
+		removeSourceItem,
+		enableSources: async () => {
+			if (!composed) return;
+			try {
+				const next = enableSourceEditing(composed);
+				await probeSourceMetadata(next);
+				commit(next);
+			} catch (e) {
+				toast.error(String(e));
+			}
+		},
 		selected: state.selectedClipId,
 		time: time * 1000,
 		commit,
@@ -128,7 +213,8 @@ export function useCompositionEditing({
 		enable: async () => {
 			if (!project || duration <= 0) return;
 			try {
-				const next = migrateProject(project, duration * 1000);
+				const next = enableSourceEditing(migrateProject(project, duration * 1000));
+				await probeSourceMetadata(next);
 				const info = await window.electronAPI.compositionProbe(project.videoPath);
 				const scale = Math.min(
 					1,

@@ -34,6 +34,9 @@ export function checkDoctor() {
 		"window-list-helper": fs.existsSync(winList),
 		"cursor-monitor-helper": fs.existsSync(cursorMonitor),
 		ffmpeg: fs.existsSync(ffmpeg),
+		ffprobe: fs.existsSync(getFfprobePath()),
+		"cursor-tracker": fs.existsSync(getNativeBinaryPath("recordly-cursor-tracker")),
+		"permission-helper": fs.existsSync(getNativeBinaryPath("recordly-cli-permissions")),
 		electron: fs.existsSync(electron),
 	};
 
@@ -41,25 +44,13 @@ export function checkDoctor() {
 		checks.binaries.ok = false;
 	}
 
-	// Permission checks using Swift one-liner
+	// Use a shipped native helper: installed users do not need Xcode or Swift.
 	try {
-		const swiftScript = `
-import CoreGraphics
-import ApplicationServices
-let screen = CGPreflightScreenCaptureAccess()
-let ax = AXIsProcessTrusted()
-print("\\(screen),\\(ax)")
-`;
-		const out = execFileSync("swift", ["-e", swiftScript], { encoding: "utf8" }).trim();
-		const [screenStr, axStr] = out.split(",");
-		const screenOk = screenStr === "true";
-		const axOk = axStr === "true";
-
-		checks.permissions.details = {
-			screenRecording: screenOk,
-			accessibility: axOk,
-		};
-		checks.permissions.ok = screenOk; // Accessibility is optional/recommended for cursor clicks
+		const permissions = JSON.parse(execFileSync(getNativeBinaryPath("recordly-cli-permissions"), [], {
+			encoding: "utf8", timeout: 10000,
+		}));
+		checks.permissions.details = permissions;
+		checks.permissions.ok = permissions.screenRecording === true;
 	} catch (e) {
  checks.permissions.ok = false;
 		checks.permissions.details = {

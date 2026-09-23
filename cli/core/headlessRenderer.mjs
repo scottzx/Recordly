@@ -1,7 +1,7 @@
 import { spawn } from "node:child_process";
 import fs from "node:fs/promises";
 import path from "node:path";
-import { getElectronBinaryPath, repoRoot } from "./paths.mjs";
+import { getRendererLaunch } from "./paths.mjs";
 
 async function artifactStat(filePath) {
 	try {
@@ -36,9 +36,9 @@ export async function renderProject(options) {
 	const [previousOutput, previousReport] = await Promise.all([
 		artifactStat(outputPath), artifactStat(reportPath),
 	]);
-	const electronBin = getElectronBinaryPath();
+	const launch = getRendererLaunch();
 	const env = {
-		...process.env,
+		...launch.env,
 		RECORDLY_SMOKE_EXPORT: "1",
 		RECORDLY_SMOKE_EXPORT_OUTPUT: outputPath,
 		RECORDLY_SMOKE_EXPORT_QUALITY: quality,
@@ -55,8 +55,8 @@ export async function renderProject(options) {
 	}
 
 	if (compositionRange) env.RECORDLY_COMPOSITION_RANGE = JSON.stringify(compositionRange);
-	const child = spawn(electronBin, [repoRoot], {
-		cwd: repoRoot,
+	const child = spawn(launch.executable, launch.args, {
+		cwd: process.cwd(),
 		env,
 		stdio: ["ignore", "pipe", "pipe"],
 	});
