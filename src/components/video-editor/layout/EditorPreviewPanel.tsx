@@ -122,7 +122,7 @@ export function EditorPreviewPanel(props: Props) {
 								<Button
 									variant="ghost"
 									size="sm"
-									className="h-7 gap-1 px-2 text-xs text-muted-foreground transition-all hover:bg-foreground/10 hover:text-foreground"
+									className="h-8 gap-1 px-2 text-xs text-muted-foreground transition-all hover:bg-foreground/10 hover:text-foreground"
 								>
 									<span className="font-medium">
 										{getAspectRatioLabel(aspectRatio)}
@@ -153,7 +153,7 @@ export function EditorPreviewPanel(props: Props) {
 							variant="ghost"
 							size="sm"
 							onClick={handleOpenCropEditor}
-							className="h-7 gap-1.5 px-2 text-xs text-muted-foreground transition-all hover:bg-foreground/10 hover:text-foreground"
+							className="h-8 gap-1.5 px-2 text-xs text-muted-foreground transition-all hover:bg-foreground/10 hover:text-foreground"
 						>
 							<Crop className="h-3.5 w-3.5" />
 							<span className="font-medium">{t("settings.crop.title")}</span>
@@ -215,14 +215,14 @@ export function EditorPreviewPanel(props: Props) {
 				</div>
 			</div>
 
-			<div className="relative flex flex-shrink-0 items-center px-1 py-1">
-				<div className="z-10 flex min-w-0 flex-1 items-center gap-1.5">
+			<div className="editor-preview-toolbar flex flex-shrink-0 flex-wrap items-center justify-between gap-2 px-1 py-1">
+				<div className="flex shrink-0 items-center gap-1.5">
 					<DropdownMenu>
 						<DropdownMenuTrigger asChild>
 							<Button
 								variant="ghost"
 								size="sm"
-								className="h-7 gap-1 rounded-full border border-foreground/[0.08] bg-foreground/[0.04] px-2.5 text-[11px] text-foreground/65 shadow-[inset_0_1px_0_hsl(var(--foreground)/0.06)] transition-all hover:bg-foreground/[0.08] hover:text-foreground"
+								className="h-8 gap-1 rounded-full border border-foreground/[0.08] bg-foreground/[0.04] px-2.5 text-[13px] text-foreground/65 shadow-[inset_0_1px_0_hsl(var(--foreground)/0.06)] transition-all hover:bg-foreground/[0.08] hover:text-foreground"
 							>
 								<Plus className="h-3.5 w-3.5" />
 								<span className="font-medium">{t("editor.toolbar.addLayer")}</span>
@@ -272,7 +272,7 @@ export function EditorPreviewPanel(props: Props) {
 						onClick={() => timelineRef.current?.addZoom()}
 						variant="ghost"
 						size="icon"
-						className="h-7 w-7 rounded-full text-muted-foreground transition-all hover:bg-[#2563EB]/10 hover:text-[#2563EB]"
+						className="h-8 w-8 rounded-full text-muted-foreground transition-all hover:bg-[#2563EB]/10 hover:text-[#2563EB]"
 						title={t("timeline.zoom.addZoom")}
 					>
 						<MagnifyingGlassPlus className="h-4 w-4" />
@@ -281,7 +281,7 @@ export function EditorPreviewPanel(props: Props) {
 						onClick={() => timelineRef.current?.suggestZooms()}
 						variant="ghost"
 						size="icon"
-						className="h-7 w-7 rounded-full text-muted-foreground transition-all hover:bg-[#2563EB]/10 hover:text-[#2563EB]"
+						className="h-8 w-8 rounded-full text-muted-foreground transition-all hover:bg-[#2563EB]/10 hover:text-[#2563EB]"
 						title={t("timeline.zoom.suggestZooms")}
 					>
 						<MagicWand className="h-4 w-4" />
@@ -290,22 +290,22 @@ export function EditorPreviewPanel(props: Props) {
 						onClick={() => timelineRef.current?.splitClip()}
 						variant="ghost"
 						size="icon"
-						className="h-7 w-7 rounded-full text-muted-foreground transition-all hover:bg-foreground/10 hover:text-foreground"
+						className="h-8 w-8 rounded-full text-muted-foreground transition-all hover:bg-foreground/10 hover:text-foreground"
 						title={t("editor.toolbar.splitClip")}
 					>
 						<Scissors className="h-4 w-4" />
 					</Button>
 				</div>
 
-				<div className="pointer-events-none absolute inset-0 z-10 flex items-center justify-center">
+				<div className="flex shrink-0 items-center justify-center">
 					<div className="pointer-events-auto flex items-center gap-1.5">
-						<span className="mr-1 text-[10px] font-medium tabular-nums text-muted-foreground">
+						<span className="mr-1 text-xs font-medium tabular-nums text-muted-foreground">
 							{formatTime(projection.timelinePlayheadTime)}
 						</span>
 						<Button
 							variant="ghost"
 							size="icon"
-							className="h-7 w-7 rounded-full text-muted-foreground transition-all hover:bg-foreground/10 hover:text-foreground"
+							className="h-8 w-8 rounded-full text-muted-foreground transition-all hover:bg-foreground/10 hover:text-foreground"
 							title={t("editor.playback.skipBack")}
 							onClick={playback.handlePreviewSkipBack}
 						>
@@ -314,7 +314,7 @@ export function EditorPreviewPanel(props: Props) {
 						<Button
 							variant="ghost"
 							size="icon"
-							className={`h-7 w-7 rounded-full border border-foreground/10 shadow-[0_8px_18px_rgba(0,0,0,0.18)] transition-all ${isPlaying ? "bg-foreground/10 text-foreground hover:bg-foreground/20" : "bg-neutral-800 text-white hover:bg-neutral-700 dark:bg-white dark:text-black dark:hover:bg-white/90"}`}
+							className={`h-8 w-8 rounded-full border border-foreground/10 shadow-[0_8px_18px_rgba(0,0,0,0.18)] transition-all ${isPlaying ? "bg-foreground/10 text-foreground hover:bg-foreground/20" : "bg-neutral-800 text-white hover:bg-neutral-700 dark:bg-white dark:text-black dark:hover:bg-white/90"}`}
 							onClick={playback.togglePlayPause}
 							title={isPlaying ? "Pause" : "Play"}
 						>
@@ -327,23 +327,23 @@ export function EditorPreviewPanel(props: Props) {
 						<Button
 							variant="ghost"
 							size="icon"
-							className="h-7 w-7 rounded-full text-muted-foreground transition-all hover:bg-foreground/10 hover:text-foreground"
+							className="h-8 w-8 rounded-full text-muted-foreground transition-all hover:bg-foreground/10 hover:text-foreground"
 							title={t("editor.playback.skipForward")}
 							onClick={playback.handlePreviewSkipForward}
 						>
 							<SkipForward className="h-3.5 w-3.5" weight="fill" />
 						</Button>
-						<span className="ml-1 text-[10px] font-medium tabular-nums text-muted-foreground/70">
+						<span className="ml-1 text-xs font-medium tabular-nums text-muted-foreground">
 							{formatTime(projection.timelineDuration)}
 						</span>
 					</div>
 				</div>
 
-				<div className="z-10 ml-auto flex items-center gap-2">
+				<div className="flex shrink-0 items-center gap-2">
 					<div className="flex items-center gap-1.5">
 						<button
 							type="button"
-							className="text-muted-foreground transition-colors hover:text-foreground"
+							className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-foreground/10 hover:text-foreground"
 							title={t("editor.playback.muteUnmute")}
 							onClick={() => setPreviewVolume(previewVolume <= 0.001 ? 1 : 0)}
 						>
@@ -355,7 +355,7 @@ export function EditorPreviewPanel(props: Props) {
 								<SpeakerHigh className="h-3.5 w-3.5" />
 							)}
 						</button>
-						<div className="relative flex h-7 w-24 select-none items-center overflow-hidden rounded-full border border-foreground/[0.06] bg-editor-bg/80 shadow-[inset_0_1px_0_hsl(var(--foreground)/0.06)]">
+						<div className="relative flex h-8 w-24 select-none items-center overflow-hidden rounded-full border border-foreground/[0.06] bg-editor-bg/80 shadow-[inset_0_1px_0_hsl(var(--foreground)/0.06)]">
 							<div
 								className="absolute inset-y-[3px] left-[3px] right-auto rounded-[10px] bg-foreground/[0.08]"
 								style={{
@@ -369,7 +369,7 @@ export function EditorPreviewPanel(props: Props) {
 								className="pointer-events-none absolute bottom-[18%] top-[18%] z-10 w-0.5 rounded-full bg-foreground/95 shadow-[0_0_10px_rgba(37,99,235,0.28)]"
 								style={{ left: `calc(${previewVolume * 100}% - 8px)` }}
 							/>
-							<span className="pointer-events-none relative z-10 pl-2 text-[10px] font-medium text-muted-foreground">
+							<span className="pointer-events-none relative z-10 pl-2 text-xs font-medium text-muted-foreground">
 								{Math.round(previewVolume * 100)}%
 							</span>
 							<input
