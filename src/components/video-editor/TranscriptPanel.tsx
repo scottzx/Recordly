@@ -46,6 +46,14 @@ export function TranscriptPanel({ reviewOnly = false }: { reviewOnly?: boolean }
 	const [summary, setSummary] = useState(""),
 		[error, setError] = useState("");
 	const [stale, setStale] = useState(false);
+	const reviewPanel = useRef<HTMLDetailsElement>(null);
+	const previousReviewId = useRef(review?.plan.id);
+	useEffect(() => {
+		if (review?.plan.id && review.plan.id !== previousReviewId.current) {
+			reviewPanel.current?.scrollIntoView({ block: "start" });
+		}
+		previousReviewId.current = review?.plan.id;
+	}, [review?.plan.id]);
 	useEffect(() => {
 		let disposed = false;
 		if (!project || !review) {
@@ -548,7 +556,7 @@ export function TranscriptPanel({ reviewOnly = false }: { reviewOnly?: boolean }
 					</div>
 				</>
 			)}
-			<details key={review ? review.plan.id : "no-review"} open={reviewOnly || Boolean(review)} className="mt-3 border-t border-border pt-3">
+			<details ref={reviewPanel} key={review ? review.plan.id : "no-review"} open={reviewOnly || Boolean(review)} className="mt-3 border-t border-border pt-3">
 				<summary className={reviewOnly ? "hidden" : "mb-3 text-sm font-medium"}>修改建议{review ? ` · ${review.plan.suggestions.length} 条` : ""}</summary>
 				<button
 					className={button}
