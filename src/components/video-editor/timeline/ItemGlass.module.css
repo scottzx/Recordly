@@ -1,6 +1,6 @@
 .glassGreen {
 	position: relative;
-	border-radius: 8px;
+	border-radius: 4px;
 	background: #183065;
 	border: 1px solid #1b3a7f;
 	transition:
@@ -22,7 +22,7 @@
 
 .glassRed {
 	position: relative;
-	border-radius: 8px;
+	border-radius: 4px;
 	background: #652425;
 	border: 1px solid #802a2b;
 	transition:
@@ -44,7 +44,7 @@
 
 .glassYellow {
 	position: relative;
-	border-radius: 8px;
+	border-radius: 4px;
 	background: #4e4726;
 	border: 1px solid #62582c;
 	transition:
@@ -66,7 +66,7 @@
 
 .glassAmber {
 	position: relative;
-	border-radius: 8px;
+	border-radius: 4px;
 	background: #67460f;
 	border: 1px solid #83570f;
 	transition:
@@ -88,7 +88,7 @@
 
 .glassPurple {
 	position: relative;
-	border-radius: 8px;
+	border-radius: 4px;
 	background: #4a2a69;
 	border: 1px solid #5c3385;
 	transition:
@@ -110,7 +110,7 @@
 
 .glassCyan {
 	position: relative;
-	border-radius: 8px;
+	border-radius: 4px;
 	background: #183065;
 	border: 1px solid #1b3a7f;
 	transition:
@@ -132,7 +132,7 @@
 
 .glassDarkGreen {
 	position: relative;
-	border-radius: 8px;
+	border-radius: 4px;
 	background: #164f2d;
 	border: 1px solid #196b38;
 	transition:
@@ -154,7 +154,7 @@
 
 .glassCaption {
 	position: relative;
-	border-radius: 8px;
+	border-radius: 4px;
 	background: #5b2746;
 	border: 1px solid #7a3157;
 	transition:
@@ -197,113 +197,113 @@
 
 /* --- Light-mode overrides --- */
 :global(:root:not(.dark)) .glassGreen {
-	background: linear-gradient(180deg, #dbeafe 0%, #93c5fd 100%);
-	border-color: #60a5fa;
+	background: #dbeafe;
+	border-color: color-mix(in srgb, #60a5fa 45%, hsl(var(--background)));
 }
 :global(:root:not(.dark)) .glassGreen:hover {
-	background: linear-gradient(180deg, #bfdbfe 0%, #60a5fa 100%);
+	background: #bfdbfe;
 	border-color: #3b82f6;
 }
 :global(:root:not(.dark)) .glassGreen.selected {
-	background: linear-gradient(180deg, #93c5fd 0%, #3b82f6 100%);
+	background: #93c5fd;
 	border-color: #2563eb;
 	box-shadow: inset 0 0 0 1.5px #2563eb;
 }
 
 :global(:root:not(.dark)) .glassRed {
-	background: linear-gradient(180deg, #fee2e2 0%, #fca5a5 100%);
-	border-color: #f87171;
+	background: #fee2e2;
+	border-color: color-mix(in srgb, #f87171 45%, hsl(var(--background)));
 }
 :global(:root:not(.dark)) .glassRed:hover {
-	background: linear-gradient(180deg, #fecaca 0%, #f87171 100%);
+	background: #fecaca;
 	border-color: #ef4444;
 }
 :global(:root:not(.dark)) .glassRed.selected {
-	background: linear-gradient(180deg, #fca5a5 0%, #ef4444 100%);
+	background: #fca5a5;
 	border-color: #ef4444;
 	box-shadow: inset 0 0 0 1.5px #ef4444;
 }
 
 :global(:root:not(.dark)) .glassYellow {
-	background: linear-gradient(180deg, #fef9c3 0%, #fde047 100%);
-	border-color: #facc15;
+	background: #fef9c3;
+	border-color: color-mix(in srgb, #facc15 45%, hsl(var(--background)));
 }
 :global(:root:not(.dark)) .glassYellow:hover {
-	background: linear-gradient(180deg, #fef08a 0%, #facc15 100%);
+	background: #fef08a;
 	border-color: #eab308;
 }
 :global(:root:not(.dark)) .glassYellow.selected {
-	background: linear-gradient(180deg, #fde047 0%, #eab308 100%);
+	background: #fde047;
 	border-color: #b4a046;
 	box-shadow: inset 0 0 0 1.5px #b4a046;
 }
 
 :global(:root:not(.dark)) .glassAmber {
-	background: linear-gradient(180deg, #fef3c7 0%, #fcd34d 100%);
-	border-color: #fbbf24;
+	background: #fef3c7;
+	border-color: color-mix(in srgb, #fbbf24 45%, hsl(var(--background)));
 }
 :global(:root:not(.dark)) .glassAmber:hover {
-	background: linear-gradient(180deg, #fde68a 0%, #fbbf24 100%);
+	background: #fde68a;
 	border-color: #f59e0b;
 }
 :global(:root:not(.dark)) .glassAmber.selected {
-	background: linear-gradient(180deg, #fcd34d 0%, #f59e0b 100%);
+	background: #fcd34d;
 	border-color: #f59e0b;
 	box-shadow: inset 0 0 0 1.5px #f59e0b;
 }
 
 :global(:root:not(.dark)) .glassPurple {
-	background: linear-gradient(180deg, #f3e8ff 0%, #d8b4fe 100%);
-	border-color: #c084fc;
+	background: #f3e8ff;
+	border-color: color-mix(in srgb, #c084fc 45%, hsl(var(--background)));
 }
 :global(:root:not(.dark)) .glassPurple:hover {
-	background: linear-gradient(180deg, #e9d5ff 0%, #c084fc 100%);
+	background: #e9d5ff;
 	border-color: #a855f7;
 }
 :global(:root:not(.dark)) .glassPurple.selected {
-	background: linear-gradient(180deg, #d8b4fe 0%, #a855f7 100%);
+	background: #d8b4fe;
 	border-color: #a855f7;
 	box-shadow: inset 0 0 0 1.5px #a855f7;
 }
 
 :global(:root:not(.dark)) .glassCyan {
-	background: linear-gradient(180deg, #dbeafe 0%, #93c5fd 100%);
-	border-color: #60a5fa;
+	background: #dbeafe;
+	border-color: color-mix(in srgb, #60a5fa 45%, hsl(var(--background)));
 }
 :global(:root:not(.dark)) .glassCyan:hover {
-	background: linear-gradient(180deg, #bfdbfe 0%, #60a5fa 100%);
+	background: #bfdbfe;
 	border-color: #3b82f6;
 }
 :global(:root:not(.dark)) .glassCyan.selected {
-	background: linear-gradient(180deg, #93c5fd 0%, #3b82f6 100%);
+	background: #93c5fd;
 	border-color: #2563eb;
 	box-shadow: inset 0 0 0 1.5px #2563eb;
 }
 
 :global(:root:not(.dark)) .glassDarkGreen {
-	background: linear-gradient(180deg, #dcfce7 0%, #86efac 100%);
-	border-color: #4ade80;
+	background: #dcfce7;
+	border-color: color-mix(in srgb, #4ade80 45%, hsl(var(--background)));
 }
 :global(:root:not(.dark)) .glassDarkGreen:hover {
-	background: linear-gradient(180deg, #bbf7d0 0%, #4ade80 100%);
+	background: #bbf7d0;
 	border-color: #22c55e;
 }
 :global(:root:not(.dark)) .glassDarkGreen.selected {
-	background: linear-gradient(180deg, #86efac 0%, #22c55e 100%);
+	background: #86efac;
 	border-color: #22c55e;
 	box-shadow: inset 0 0 0 1.5px #22c55e;
 }
 
 :global(:root:not(.dark)) .glassCaption {
-	background: linear-gradient(180deg, #fce7f3 0%, #f9a8d4 100%);
-	border-color: #f472b6;
+	background: #fce7f3;
+	border-color: color-mix(in srgb, #f472b6 45%, hsl(var(--background)));
 }
 :global(:root:not(.dark)) .glassCaption:hover {
-	background: linear-gradient(180deg, #fbcfe8 0%, #f472b6 100%);
+	background: #fbcfe8;
 	border-color: #ec4899;
 }
 :global(:root:not(.dark)) .glassCaption.selected {
-	background: linear-gradient(180deg, #f9a8d4 0%, #ec4899 100%);
+	background: #f9a8d4;
 	border-color: #ec4899;
 	box-shadow: inset 0 0 0 1.5px #ec4899;
 }
