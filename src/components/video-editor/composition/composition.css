@@ -1,10 +1,10 @@
 .composition-settings h2 {
 	font-weight: 600;
-	margin: 16px 0 10px;
+	margin: 8px 0 4px;
 }
 .composition-settings label {
 	display: block;
-	margin: 10px 0;
+	margin: 6px 0;
 	color: hsl(var(--muted-foreground));
 	font-size: 12px;
 }
@@ -12,16 +12,16 @@
 .composition-settings select {
 	display: block;
 	width: 100%;
-	margin-top: 5px;
-	padding: 7px;
+	margin-top: 3px;
+	padding: 4px 6px;
 	border: 1px solid hsl(var(--border));
 	border-radius: 6px;
 	color: hsl(var(--foreground));
 	background: hsl(var(--background));
 }
 .composition-settings button {
-	padding: 7px 10px;
-	margin: 4px 4px 4px 0;
+	padding: 4px 8px;
+	margin: 2px 4px 2px 0;
 	border-radius: 6px;
 	background: hsl(var(--muted));
 	font-size: 12px;
@@ -42,12 +42,12 @@
 
 .composition-settings > fieldset > h2:first-child {
 	margin-top: 0;
-	font-size: 16px;
+	font-size: 13px;
 }
 .composition-section,
 .composition-section-title {
-	margin-top: 16px;
-	padding-top: 12px;
+	margin-top: 8px;
+	padding-top: 6px;
 	border-top: 1px solid hsl(var(--border));
 }
 .composition-section-title,
@@ -56,10 +56,10 @@
 	font-weight: 600;
 }
 .composition-settings summary {
-	padding: 6px 0;
+	padding: 2px 0;
 }
 .composition-settings details p {
-	margin: 8px 0;
+	margin: 4px 0;
 	font-size: 12px;
 	line-height: 1.6;
 	color: hsl(var(--muted-foreground));
