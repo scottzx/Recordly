@@ -31,12 +31,12 @@ export default function Row({
 
 	return (
 		<div
-			className="bg-transparent relative flex-1 min-h-[26px]"
-			style={{ ...rowWrapperStyle, marginBottom: 2, minHeight: label ? 44 : 26 }}
+			className="bg-transparent relative flex-1 min-h-[36px]"
+			style={{ ...rowWrapperStyle, marginBottom: 2, minHeight: label ? 60 : 36 }}
 		>
 			{label && (
 				<div
-					className="absolute left-1.5 top-0.5 text-[10px] font-semibold uppercase tracking-widest z-20 pointer-events-none select-none"
+					className="absolute left-1.5 top-0.5 text-xs leading-4 font-semibold z-20 pointer-events-none select-none"
 					style={{ color: labelColor, writingMode: "horizontal-tb" }}
 				>
 					{label}
@@ -44,15 +44,15 @@ export default function Row({
 			)}
 			{isEmpty && hint && (
 				<div className="absolute inset-0 flex items-center justify-center pointer-events-none select-none z-10">
-					<span className="text-[11px] text-foreground/15 font-medium">{hint}</span>
+					<span className="text-xs text-muted-foreground font-medium">{hint}</span>
 				</div>
 			)}
 			<div
 				ref={setNodeRef}
-				className="relative h-full min-h-[26px] overflow-hidden"
+				className="relative h-full min-h-[36px] overflow-hidden"
 				style={{
 					...rowStyle,
-					...(label ? { marginTop: 16, height: "calc(100% - 16px)" } : {}),
+					...(label ? { marginTop: 20, height: "calc(100% - 20px)" } : {}),
 				}}
 				onMouseEnter={onMouseEnter}
 				onMouseMove={onMouseMove}

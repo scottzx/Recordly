@@ -345,3 +345,15 @@
 .zoomEndCap::after {
 	content: none;
 }
+
+/* Two readable lines fit inside the 36px minimum timeline item height. */
+:is(.glassGreen, .glassRed, .glassYellow, .glassAmber, .glassPurple, .glassCyan, .glassDarkGreen, .glassCaption) :is([class~="text-[9px]"], [class~="text-[11px]"]) {
+	font-size: 12px;
+	line-height: 16px;
+}
+:is(.glassGreen, .glassRed, .glassYellow, .glassAmber, .glassPurple, .glassCyan, .glassDarkGreen, .glassCaption) > [class~="select-none"] {
+	opacity: 1;
+}
+:is(.glassGreen, .glassRed, .glassYellow, .glassAmber, .glassPurple, .glassCyan, .glassDarkGreen, .glassCaption):is(:hover, .selected) [class~="tabular-nums"][class~="transition-opacity"] {
+	opacity: 0.85;
+}
