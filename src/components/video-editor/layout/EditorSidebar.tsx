@@ -9,12 +9,15 @@ import {
 	Gear,
 	PuzzlePiece,
 	Sparkle,
-	UserCircle,
+	FileText,
+	ListChecks,
+	FolderOpen,
+	FilmStrip,
+	CaretLeft,
+	CaretRight,
 } from "@phosphor-icons/react";
-import { motion } from "motion/react";
 import type { ComponentProps, Dispatch, SetStateAction } from "react";
 import { useMemo, useState } from "react";
-import { toast } from "sonner";
 import type { useI18n } from "@/contexts/I18nContext";
 import ExtensionManager from "../ExtensionManager";
 import { SettingsPanel } from "../SettingsPanel";
@@ -33,10 +36,10 @@ export function EditorSidebar({ t, activeSection, setActiveSection, settingsPane
 	const sourceEditing = Boolean(composition?.project?.composition.sources);
 	const sections = useMemo(
 		() => [
-			{ id: "transcript" as const, label: "文稿", icon: ClosedCaptioning },
-			{ id: "review" as const, label: "修改审阅", icon: Sparkle },
-			{ id: "library" as const, label: "素材库", icon: Camera },
-			{ id: "composition" as const, label: "镜头与素材", icon: Camera },
+			{ id: "transcript" as const, label: "文稿", icon: FileText },
+			{ id: "review" as const, label: "修改审阅", shortLabel: "审阅", icon: ListChecks },
+			{ id: "library" as const, label: "素材库", icon: FolderOpen },
+			{ id: "composition" as const, label: "镜头与素材", shortLabel: "镜头", icon: FilmStrip },
 			{ id: "scene" as const, label: t("settings.sections.scene", "Scene"), icon: Sparkle },
 			{ id: "cursor" as const, label: t("settings.sections.cursor", "Cursor"), icon: Cursor },
 			{ id: "webcam" as const, label: t("settings.sections.webcam", "Webcam"), icon: Camera },
@@ -47,104 +50,56 @@ export function EditorSidebar({ t, activeSection, setActiveSection, settingsPane
 			},
 			{
 				id: "settings" as const,
-				label: t("settings.sections.settings", "Settings"),
+				label: t("settings.sections.settings", "设置"),
 				icon: Gear,
 			},
 			{
 				id: "extensions" as const,
-				label: t("settings.sections.extensions", "Extensions"),
+				label: t("settings.sections.extensions", "扩展"),
 				icon: PuzzlePiece,
 			},
 		],
 		[t],
 	);
 	return (
-		<div className="flex flex-shrink-0 gap-1.5">
-			<div className="flex flex-shrink-0 flex-col items-center gap-0.5 px-2 py-2">
-				{sections
-					.filter((section) => !sourceEditing || section.id !== "webcam")
-					.map((section) => {
-						const isActive = activeSection === section.id;
-						return (
-							<div key={section.id} className="flex items-center">
-								<motion.button
-									type="button"
-									onClick={() => {
-										setActiveSection(section.id);
-										setCollapsed(false);
-									}}
-									title={section.label}
-									className="group relative flex h-9 w-9 items-center justify-center rounded-lg outline-none focus:outline-none focus-visible:outline-none"
-									animate={{ opacity: isActive ? 1 : 0.55 }}
-									transition={{ duration: 0.14 }}
-								>
-									{isActive ? (
-										<motion.span
-											layoutId="rail-active-bg"
-											className="absolute inset-0 rounded-lg bg-foreground/[0.08]"
-											transition={{
-												type: "spring",
-												stiffness: 450,
-												damping: 35,
-											}}
-										/>
-									) : null}
-									<motion.span
-										className="relative z-10"
-										animate={{
-											color: isActive ? "#2563EB" : "hsl(var(--foreground))",
+		<div className="flex min-h-0 flex-shrink-0 gap-3">
+			<aside className="flex w-24 min-h-0 flex-shrink-0 flex-col border-r border-border pr-2">
+				<nav aria-label="编辑工具" className="min-h-0 flex-1 overflow-y-auto py-1">
+					{sections
+						.filter((section) => !sourceEditing || section.id !== "webcam")
+						.map((section) => {
+							const isActive = activeSection === section.id;
+							return (
+								<div key={section.id} className={section.id === "scene" || section.id === "settings" ? "mt-3 border-t border-border pt-3" : "mt-1"}>
+									<button
+										type="button"
+										onClick={() => {
+											setActiveSection(section.id);
+											setCollapsed(false);
 										}}
-										transition={{ duration: 0.14 }}
+										title={section.label}
+										aria-label={section.label}
+										aria-pressed={isActive}
+										className={`flex min-h-9 w-full items-center gap-2 rounded-md px-2 text-xs font-medium transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-primary ${isActive ? "bg-accent text-accent-foreground" : "text-muted-foreground hover:bg-muted hover:text-foreground"}`}
 									>
-										<section.icon
-											className="h-[27px] w-[27px]"
-											weight={isActive ? "fill" : "regular"}
-										/>
-									</motion.span>
-								</motion.button>
-								<div className="ml-1.5 h-1.5 w-1.5 flex-shrink-0">
-									{isActive ? (
-										<motion.span
-											layoutId="rail-active-dot"
-											className="block h-1.5 w-1.5 rounded-full bg-[#2563EB]"
-											initial={{ opacity: 0, scale: 0.5 }}
-											animate={{ opacity: 1, scale: 1 }}
-											exit={{ opacity: 0, scale: 0.5 }}
-											transition={{
-												type: "spring",
-												stiffness: 500,
-												damping: 32,
-											}}
-										/>
-									) : null}
+										<section.icon aria-hidden="true" className="h-[18px] w-[18px] flex-shrink-0" weight={isActive ? "fill" : "regular"} />
+										<span>{section.shortLabel ?? section.label}</span>
+									</button>
 								</div>
-							</div>
-						);
-					})}
-				<div className="mt-auto flex flex-col items-center gap-0.5 pt-3">
-					<motion.button
-						type="button"
-						onClick={() =>
-							toast.info(t("editor.account.comingSoon", "Account coming soon"))
-						}
-						title={t("editor.account.title", "Account")}
-						className="group relative flex h-9 w-9 items-center justify-center rounded-lg text-foreground/55 outline-none transition hover:text-foreground focus:outline-none focus-visible:outline-none"
-						whileHover={{ opacity: 1 }}
-						initial={{ opacity: 0.55 }}
-					>
-						<motion.span className="absolute inset-0 rounded-lg bg-foreground/[0.04] opacity-0 transition group-hover:opacity-100" />
-						<UserCircle className="relative z-10 h-[22px] w-[22px]" />
-					</motion.button>
-				</div>
-			</div>
-			<button
-				type="button"
-				className="self-start text-xs"
-				aria-label={collapsed ? "展开属性面板" : "收起属性面板"}
-				onClick={() => setCollapsed((v) => !v)}
-			>
-				{collapsed ? "›" : "‹"}
-			</button>
+							);
+						})}
+				</nav>
+				<button
+					type="button"
+					className="mt-2 flex min-h-9 flex-shrink-0 items-center gap-2 rounded-md px-2 text-xs text-muted-foreground hover:bg-muted hover:text-foreground"
+					aria-label={collapsed ? "展开属性面板" : "收起属性面板"}
+					aria-expanded={!collapsed}
+					onClick={() => setCollapsed((v) => !v)}
+				>
+					{collapsed ? <CaretRight aria-hidden="true" /> : <CaretLeft aria-hidden="true" />}
+					{collapsed ? "展开面板" : "收起面板"}
+				</button>
+			</aside>
 			{collapsed ? null : activeSection === "transcript" || activeSection === "review" ? (
 				<TranscriptPanel reviewOnly={activeSection === "review"} />
 			) : activeSection === "library" ? (
