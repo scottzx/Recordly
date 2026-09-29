@@ -1,3 +1,5 @@
+import { BRollCandidates } from "./BRollCandidates";
+import { OverlayTemplates } from "./OverlayTemplates";
 import { NumberField } from "./NumberField";
 import { SourceEditingPanel } from "./SourceEditingPanel";
 import { toast } from "sonner";
@@ -130,6 +132,19 @@ export function CompositionSettingsPanel() {
 			<fieldset>
 				<h2>镜头与素材</h2>
 				<SourceEditingPanel />
+				<OverlayTemplates />
+				{selectedShot?.kind === "main" && (
+					<label>
+						<input
+							type="checkbox"
+							checked={Boolean(selectedShot.locked)}
+							onChange={(e) =>
+								changeShot({ ...selectedShot, locked: e.target.checked })
+							}
+						/>
+						固定已确认片段（阻止 AI／停顿建议修改）
+					</label>
+				)}
 				{!c.sources && !project.editor.webcam?.sourcePath && (
 					<p>当前工程未关联人像素材。请先在摄像头面板导入，才能使用人物布局。</p>
 				)}
@@ -460,6 +475,7 @@ export function CompositionSettingsPanel() {
 						</button>
 					</>
 				)}
+				{selectedBroll && <BRollCandidates key={selectedBroll.id} broll={selectedBroll} />}
 				{selectedBroll && (
 					<>
 						<h2>B-roll 辅助画面</h2>

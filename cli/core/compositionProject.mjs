@@ -36,7 +36,7 @@ export async function probeMedia(file) {
 export async function readProject(input) {
 	const project = JSON.parse(await fs.readFile(input, "utf8"));
 	if (
-		![1, 2, 3, 4].includes(project.version) ||
+		![1, 2, 3, 4, 5].includes(project.version) ||
 		(!project.videoPath && !project.composition?.sources) ||
 		!project.editor
 	)

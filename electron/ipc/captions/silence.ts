@@ -1,5 +1,5 @@
 import type { CaptionCuePayload, CaptionWordPayload } from "../types";
-import { buildCaptionTextFromWords } from "./parser";
+import { buildCaptionTextFromWords } from "./parser.ts";
 
 /**
  * Silence-aware caption re-segmentation.

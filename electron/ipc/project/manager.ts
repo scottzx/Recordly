@@ -1,3 +1,4 @@
+import { noteLoadedProject } from "./projectFileHash";
 import { registerLibraryMedia } from "./mediaLibrary";
 import { resolveRecordingSession } from "./session";
 import { validateComposition, type CompositionProject } from "../../../shared/composition";
@@ -446,9 +447,11 @@ function isLoadableProjectData(projectData: unknown) {
 export async function loadProjectFromPath(projectPath: string) {
 	const normalizedPath = normalizePath(projectPath);
 	let project: unknown;
+	let loadedContents = "";
 	try {
 		const content = await fs.readFile(normalizedPath, "utf-8");
 		project = parseJsonWithByteOrderMark(content);
+		loadedContents = content;
 	} catch (error) {
 		return {
 			success: false,
@@ -506,6 +509,7 @@ export async function loadProjectFromPath(projectPath: string) {
 	}
 	await rememberRecentProject(normalizedPath);
 
+	noteLoadedProject(normalizedPath, loadedContents);
 	setCurrentProjectPath(normalizedPath);
 	setCurrentVideoPath(mediaSources.videoPath);
 	setCurrentRecordingSession({

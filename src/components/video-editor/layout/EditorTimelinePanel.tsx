@@ -1,5 +1,5 @@
 import { findSourceItem } from "../../../../shared/compositionSources";
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import { useCompositionContext } from "../composition/useCompositionEditing";
 import {
 	brollTimelineRegions,
@@ -68,6 +68,11 @@ export function EditorTimelinePanel(props: Props) {
 	} = props;
 
 	const composition = useCompositionContext();
+	const [hiddenGroups, setHiddenGroups] = useState<string[]>([]);
+	const toggleGroup = (group: string) =>
+		setHiddenGroups((groups) =>
+			groups.includes(group) ? groups.filter((g) => g !== group) : [...groups, group],
+		);
 	const c = timeline.composition;
 	const visualAnnotations = useMemo(
 		() =>
@@ -89,6 +94,17 @@ export function EditorTimelinePanel(props: Props) {
 			className="flex flex-shrink-0 flex-col"
 			style={{ height: c?.sources ? "35%" : "25%", minHeight: c?.sources ? 300 : 240 }}
 		>
+			<div className="flex flex-wrap gap-3 px-3 py-1 text-xs" aria-label="轨道分组">
+				{["来源", "B-roll", "标注", "字幕", "缩放", "配乐"].map((group) => (
+					<button
+						key={group}
+						aria-pressed={!hiddenGroups.includes(group)}
+						onClick={() => toggleGroup(group)}
+					>
+						{hiddenGroups.includes(group) ? "▸" : "▾"} {group}
+					</button>
+				))}
+			</div>
 			<TimelineEditor
 				sequenceMode={Boolean(c)}
 				ref={timelineRef}
@@ -103,7 +119,7 @@ export function EditorTimelinePanel(props: Props) {
 				autoSuggestZoomsTrigger={autoSuggestZoomsTrigger}
 				onAutoSuggestZoomsConsumed={handleAutoSuggestZoomsConsumed}
 				disableSuggestedZooms={Boolean(c) || disableSuggestedZooms}
-				zoomRegions={visualZooms}
+				zoomRegions={hiddenGroups.includes("缩放") ? [] : visualZooms}
 				onZoomAdded={(span) => {
 					const mapped = c ? sourceSpanAtOutput(span, c) : span;
 					if (mapped) zoomCommands.handleZoomAdded(mapped);
@@ -142,13 +158,15 @@ export function EditorTimelinePanel(props: Props) {
 						: timeline.selectedClipId
 				}
 				onSelectClip={clipCommands.handleSelectClip}
-				audioRegions={timeline.audioRegions}
+				audioRegions={hiddenGroups.includes("配乐") ? [] : timeline.audioRegions}
 				onAudioAdded={audioCommands.handleAudioAdded}
 				onAudioSpanChange={audioCommands.handleAudioSpanChange}
 				onAudioDelete={audioCommands.handleAudioDelete}
 				selectedAudioId={timeline.selectedAudioId}
 				onSelectAudio={audioCommands.handleSelectAudio}
-				captionRegions={projection.effectiveCaptionRegions}
+				captionRegions={
+					hiddenGroups.includes("字幕") ? [] : projection.effectiveCaptionRegions
+				}
 				onCaptionSpanChange={(id, span) => {
 					const fragment = projection.effectiveCaptionRegions.find(
 						(cue) => cue.id === id,
@@ -183,7 +201,16 @@ export function EditorTimelinePanel(props: Props) {
 				onCaptionAdded={captionCommands.handleCaptionAdded}
 				captionsEnabled={timeline.autoCaptionSettings.enabled}
 				captionQuickAddEnabled={timeline.autoCaptionSettings.timelineQuickAdd}
-				annotationRegions={visualAnnotations}
+				annotationRegions={visualAnnotations.filter(
+					(r) =>
+						!hiddenGroups.includes(
+							r.timelineRole === "source"
+								? "来源"
+								: r.timelineRole === "broll"
+									? "B-roll"
+									: "标注",
+						),
+				)}
 				onAnnotationAdded={(span, track) => {
 					const mapped = c ? sourceSpanAtOutput(span, c) : span;
 					if (mapped)

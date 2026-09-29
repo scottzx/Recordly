@@ -41,11 +41,55 @@ export const CompositionPreview = forwardRef<VideoPlaybackRef, Props>((props, re
 			}[]
 		>([]),
 		audioContext = useRef<AudioContext | null>(null);
+	const playRequest = useRef(0);
+	const resumePending = useRef<Promise<void> | null>(null);
+	const diagnostics = useRef<unknown[] | null>(null);
+	const recordAudioState = useCallback((event: string) => {
+		// Keep a bounded local trace for intermittent failures; no media paths or content.
+		try {
+			const key = "recordly:composition-audio-diagnostics";
+			if (!diagnostics.current) {
+				const saved: unknown = JSON.parse(localStorage.getItem(key) ?? "[]");
+				diagnostics.current = Array.isArray(saved) ? saved.slice(-119) : [];
+			}
+			const entry = {
+				at: new Date().toISOString(), event, playing: playState.current,
+				time: position.current, visibility: document.visibilityState,
+				context: audioContext.current?.state,
+				contextTime: audioContext.current?.currentTime,
+				tracks: tracks.current.map(({ element, gain, active, playPending }) => ({
+					time: element.currentTime, paused: element.paused, ended: element.ended,
+					seeking: element.seeking, ready: element.readyState,
+					network: element.networkState, error: element.error?.code,
+					gain: gain.gain.value, active, playPending,
+				})),
+			};
+			diagnostics.current = [...diagnostics.current.slice(-119), entry];
+			localStorage.setItem(key, JSON.stringify(diagnostics.current));
+			if (event !== "sample") console.info("[composition-audio]", entry);
+		} catch {
+			// Diagnostics must never interfere with playback, including storage failures.
+		}
+	}, []);
+	const ensureAudioRunning = useCallback(() => {
+		const context = audioContext.current;
+		if (!context || context.state === "closed") return Promise.resolve();
+		if (context.state === "running") return Promise.resolve();
+		if (!resumePending.current) {
+			const pending = context.resume().finally(() => {
+				if (resumePending.current === pending) resumePending.current = null;
+			});
+			resumePending.current = pending;
+		}
+		return resumePending.current;
+	}, []);
 	const stop = useCallback(() => {
+		playRequest.current++;
 		playState.current = false;
 		tracks.current.forEach((t) => t.element.pause());
 		latest.current.onPlaying(false);
-	}, []);
+		recordAudioState("pause");
+	}, [recordAudioState]);
 	const paint = useCallback(async () => {
 		await renderer.current?.render(
 			Math.min(
@@ -55,6 +99,8 @@ export const CompositionPreview = forwardRef<VideoPlaybackRef, Props>((props, re
 		);
 	}, []);
 	const syncAudio = useCallback((force = false) => {
+		// A suspended audio graph cannot advance. Do not keep seeking its inputs.
+		if (audioContext.current?.state !== "running") return;
 		const at = position.current * 1000;
 		for (const track of tracks.current) {
 			const { element, segment: s, gain } = track;
@@ -106,13 +152,26 @@ export const CompositionPreview = forwardRef<VideoPlaybackRef, Props>((props, re
 				queue.current = queue.current.catch(() => undefined).then(paint);
 			},
 			async play() {
+				const request = ++playRequest.current;
+				const context = audioContext.current;
 				if (position.current >= durationMs(latest.current.project.composition) / 1000)
 					position.current = 0;
-				await audioContext.current?.resume();
+				try {
+					await ensureAudioRunning();
+				} catch (error) {
+					if (request === playRequest.current) {
+						recordAudioState("resume-failed");
+						latest.current.onError(`Audio resume failed: ${String(error)}`);
+					}
+					return;
+				}
+				if (request !== playRequest.current || context !== audioContext.current) return;
+				if (!context || context.state !== "running") return;
 				playState.current = true;
 				anchor.current = { at: performance.now(), time: position.current };
 				latest.current.onPlaying(true);
 				syncAudio(true);
+				recordAudioState("play");
 			},
 			pause: stop,
 			refreshFrame: paint,
@@ -120,7 +179,7 @@ export const CompositionPreview = forwardRef<VideoPlaybackRef, Props>((props, re
 				/* Captions are edited through the existing property panel. */
 			},
 		}),
-		[paint, stop, syncAudio],
+		[paint, stop, syncAudio, ensureAudioRunning, recordAudioState],
 	);
 	useEffect(() => {
 		let disposed = false;
@@ -160,6 +219,34 @@ export const CompositionPreview = forwardRef<VideoPlaybackRef, Props>((props, re
 		let disposed = false;
 		const context = new AudioContext();
 		audioContext.current = context;
+		const recover = () => {
+			if (disposed || !playState.current) return;
+			const request = playRequest.current;
+			void ensureAudioRunning().then(() => {
+				if (disposed || !playState.current || request !== playRequest.current) return;
+				syncAudio();
+			}).catch(() => {
+				if (!disposed) recordAudioState("recovery-failed");
+			});
+		};
+		const onStateChange = () => {
+			recordAudioState("context-statechange");
+			recover();
+		};
+		const onFocus = () => { recordAudioState("focus"); recover(); };
+		const onBlur = () => recordAudioState("blur");
+		const onVisibility = () => {
+			recordAudioState("visibilitychange");
+			if (document.visibilityState === "visible") recover();
+		};
+		context.addEventListener("statechange", onStateChange);
+		window.addEventListener("focus", onFocus);
+		window.addEventListener("blur", onBlur);
+		document.addEventListener("visibilitychange", onVisibility);
+		const sample = setInterval(() => {
+			if (playState.current) recordAudioState("sample");
+		}, 5000);
+		recordAudioState("context-created");
 		const owned: typeof tracks.current = [];
 		void (async () => {
 			const hasAudio = new Map<string, boolean>();
@@ -184,21 +271,34 @@ export const CompositionPreview = forwardRef<VideoPlaybackRef, Props>((props, re
 					.connect(context.destination);
 				owned.push({ element, segment, gain, lastSeek: -Infinity, active: false, playPending: false });
 			}
-			if (!disposed) tracks.current = owned;
+			if (!disposed) {
+				tracks.current = owned;
+				recordAudioState("tracks-ready");
+				recover();
+			}
 		})().catch((e) => {
 			if (!disposed) latest.current.onError(String(e));
 		});
 		return () => {
 			disposed = true;
+			playRequest.current++;
+			recordAudioState("context-disposed");
+			clearInterval(sample);
+			context.removeEventListener("statechange", onStateChange);
+			window.removeEventListener("focus", onFocus);
+			window.removeEventListener("blur", onBlur);
+			document.removeEventListener("visibilitychange", onVisibility);
 			owned.forEach((t) => {
 				t.element.pause();
 				t.element.removeAttribute("src");
 				t.element.load();
 			});
 			tracks.current = [];
-			void context.close();
+			audioContext.current = null;
+			resumePending.current = null;
+			void context.close().catch(() => undefined);
 		};
-	}, [props.project]);
+	}, [props.project, ensureAudioRunning, recordAudioState, syncAudio]);
 	useEffect(() => {
 		let disposed = false,
 			frame = 0,

@@ -237,6 +237,35 @@ interface Window {
 		getSources: (opts: Electron.SourcesOptions) => Promise<ProcessedDesktopSource[]>;
 		openEditingProject: (file: string) => Promise<{ success: boolean; message?: string }>;
 		onOpenEditingProject: (callback: (file: string) => void) => () => void;
+		transcriptGenerate: (
+			project: import("../shared/composition").CompositionProject,
+			selections: Record<string, string>,
+			options: {
+				id: string;
+				engine: "whisper" | "transcribe-kit";
+				model?: string;
+				executable?: string;
+				language?: string;
+				force?: boolean;
+			},
+		) => Promise<import("../shared/transcript").TranscriptBundle>;
+		transcriptCancel: (id: string) => Promise<void>;
+		onTranscriptProgress: (
+			callback: (value: { id: string; message: string }) => void,
+		) => () => void;
+		oralcutFingerprints: (
+			project: import("../shared/composition").CompositionProject,
+		) => Promise<Record<string, string>>;
+		oralcutImport: () => Promise<unknown>;
+		oralcutExport: (data: unknown, name: string) => Promise<string | null>;
+		libraryUpdate: (
+			id: string,
+			patch: { name?: string; tags?: string[]; favorite?: boolean },
+		) => Promise<import("../shared/mediaLibrary").LibraryMedia>;
+		libraryRetry: (id: string) => Promise<import("../shared/mediaLibrary").LibraryMedia>;
+		libraryRelocate: (
+			id: string,
+		) => Promise<import("../shared/mediaLibrary").LibraryMedia | null>;
 		libraryList: () => Promise<import("../shared/mediaLibrary").LibraryMedia[]>;
 		libraryResolve: (id: string) => Promise<import("../shared/mediaLibrary").LibraryRecording>;
 		libraryPickProject: () => Promise<string | null>;

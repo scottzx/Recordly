@@ -2,7 +2,11 @@ import { randomUUID } from "node:crypto";
 import { constants as fsConstants } from "node:fs";
 import fs from "node:fs/promises";
 import path from "node:path";
-import { noteSelfProjectWrite } from "./projectFileHash";
+import {
+	noteSelfProjectWrite,
+	noteLoadedProject,
+	assertLoadedProjectUnchanged,
+} from "./projectFileHash";
 
 const pendingWrites = new Map<string, Promise<void>>();
 
@@ -114,18 +118,36 @@ async function commitProjectFile(projectPath: string, contents: string): Promise
 	const existingMode = await getExistingFileMode(targetPath);
 
 	try {
+		try {
+			assertLoadedProjectUnchanged(targetPath, await fs.readFile(targetPath, "utf8"));
+		} catch (error) {
+			if ((error as NodeJS.ErrnoException).code !== "ENOENT") throw error;
+		}
 		if (JSON.parse(contents).version === 3) {
-      try {
-        const previous = JSON.parse(await fs.readFile(targetPath, "utf8"));
-        if (previous.version < 3) await fs.copyFile(targetPath, `${targetPath}.v${previous.version}.bak`, fsConstants.COPYFILE_EXCL);
-      } catch (error) {
-        const code = (error as NodeJS.ErrnoException).code;
-        if (code !== "ENOENT" && code !== "EEXIST" && !(error instanceof SyntaxError)) throw error;
-      }
-    }
-    await writeSyncedTemporaryFile(temporaryPath, contents, existingMode);
+			try {
+				const previous = JSON.parse(await fs.readFile(targetPath, "utf8"));
+				if (previous.version < 3)
+					await fs.copyFile(
+						targetPath,
+						`${targetPath}.v${previous.version}.bak`,
+						fsConstants.COPYFILE_EXCL,
+					);
+			} catch (error) {
+				const code = (error as NodeJS.ErrnoException).code;
+				if (code !== "ENOENT" && code !== "EEXIST" && !(error instanceof SyntaxError))
+					throw error;
+			}
+		}
+		await writeSyncedTemporaryFile(temporaryPath, contents, existingMode);
 		await preservePreviousGeneration(targetPath, backupPath, backupTemporaryPath);
+		try {
+			assertLoadedProjectUnchanged(targetPath, await fs.readFile(targetPath, "utf8"));
+		} catch (error) {
+			if ((error as NodeJS.ErrnoException).code !== "ENOENT") throw error;
+		}
 		await fs.rename(temporaryPath, targetPath);
+		noteSelfProjectWrite(projectPath, contents);
+		noteLoadedProject(projectPath, contents);
 		await syncParentDirectory(parentDir);
 	} finally {
 		await Promise.all([
@@ -139,7 +161,6 @@ export async function writeProjectFileAtomically(
 	projectPath: string,
 	contents: string,
 ): Promise<void> {
-	noteSelfProjectWrite(projectPath, contents);
 	const queueKey = getQueueKey(projectPath);
 	const previousWrite = pendingWrites.get(queueKey) ?? Promise.resolve();
 	const currentWrite = previousWrite

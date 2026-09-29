@@ -63,6 +63,38 @@ export function LaunchHomePanel({
 				</button>
 			</header>
 			<div className="overflow-y-auto p-6 sm:p-8">
+				<div className="mb-6 grid grid-cols-3 gap-3" aria-label="创作场景">
+					<button onClick={onNewRecording} className="rounded-xl border p-4 text-left">
+						<strong>录制讲解</strong>
+						<p className="mt-2 text-xs opacity-60">录屏、摄像头与主讲声音</p>
+					</button>
+					<button
+						disabled={busy}
+						onClick={() => {
+							setBusy(true);
+							void window.electronAPI
+								.libraryImport()
+								.then((items) =>
+									items.length
+										? createProject(items.map((item) => item.id))
+										: undefined,
+								)
+								.catch((e) => toast.error(String(e)))
+								.finally(() => setBusy(false));
+						}}
+						className="rounded-xl border p-4 text-left"
+					>
+						<strong>剪辑口播</strong>
+						<p className="mt-2 text-xs opacity-60">导入视频，进入文稿粗剪</p>
+					</button>
+					<button
+						onClick={() => setTab("library")}
+						className="rounded-xl border p-4 text-left"
+					>
+						<strong>组合素材</strong>
+						<p className="mt-2 text-xs opacity-60">多选、排序，创建一个工程</p>
+					</button>
+				</div>
 				<div className="mb-6 flex items-start justify-between gap-4">
 					<div>
 						<h1 className="text-2xl font-semibold">

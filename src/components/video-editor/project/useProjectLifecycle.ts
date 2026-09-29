@@ -9,6 +9,7 @@ import {
 	useEffect,
 	useMemo,
 	useRef,
+	useState,
 } from "react";
 import { toast } from "sonner";
 import type { AspectRatio } from "@/utils/aspectRatioUtils";
@@ -74,6 +75,14 @@ type Input = {
 
 export function useProjectLifecycle(input: Input) {
 	const { project, appearance } = input;
+	const [externalProjectPath, setExternalProjectPath] = useState<string | null>(null);
+	const externalChangeRef = useRef<string | null>(null);
+	useEffect(() => {
+		if (externalChangeRef.current && project.currentProjectPath !== externalChangeRef.current) {
+			externalChangeRef.current = null;
+			setExternalProjectPath(null);
+		}
+	}, [project.currentProjectPath]);
 	const inputRef = useRef(input);
 	inputRef.current = input;
 	const pendingSaveDialogRef = useRef<{ resolve(saved: boolean): void } | null>(null);
@@ -88,6 +97,8 @@ export function useProjectLifecycle(input: Input) {
 		if (candidate.composition && validateComposition(candidate as CompositionProject).length)
 			return false;
 		const loadedProject = candidate;
+		externalChangeRef.current = null;
+		setExternalProjectPath(null);
 		const sourcePath = fromFileUrl(loadedProject.videoPath);
 		const persistedEditor = stripPersistedDevMotionBlurSettings(loadedProject.editor ?? {});
 		const editor = normalizeProjectEditor({
@@ -237,9 +248,9 @@ export function useProjectLifecycle(input: Input) {
 	useEffect(() => {
 		if (!window.electronAPI.onProjectFileChanged) return;
 		return window.electronAPI.onProjectFileChanged(async ({ path }) => {
-			const result = await window.electronAPI.openProjectFileAtPath(path);
-			if (!result.success || !result.project) return;
-			await applyLoadedProject(result.project, result.path ?? path);
+			if (path !== inputRef.current.project.currentProjectPath) return;
+			externalChangeRef.current = path;
+			setExternalProjectPath(path);
 		});
 	}, [applyLoadedProject]);
 
@@ -400,6 +411,15 @@ export function useProjectLifecycle(input: Input) {
 
 	return {
 		applyLoadedProject,
+		externalProjectPath,
+		externalChangeRef,
+		loadExternalProject: async () => {
+			const path = externalChangeRef.current;
+			if (!path) return;
+			const result = await window.electronAPI.openProjectFileAtPath(path);
+			if (result.success && result.project)
+				await applyLoadedProject(result.project, result.path ?? path);
+		},
 		currentProjectSnapshot,
 		resolveProjectSaveDialog,
 		openProjectSaveDialog,

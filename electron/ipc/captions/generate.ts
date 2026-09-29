@@ -11,33 +11,17 @@ import { getUsableCompanionAudioCandidates } from "../recording/diagnostics";
 import type { CaptionCuePayload, CaptionWordPayload } from "../types";
 import { normalizeVideoSourcePath } from "../utils";
 import { getCaptionCompanionAudioCandidates } from "./audioCandidates";
-import { parseSrtCues, parseWhisperJsonCues, shouldRetryWhisperWithoutJson } from "./parser";
-import { isMissingWindowsWhisperRuntimeDependency } from "./runtimeErrors";
 import { segmentCuesIntoPhrases } from "./segment";
-import {
-	parseSilenceIntervals,
-	SILENCE_DETECT_MIN_S,
-	SILENCE_NOISE_DB,
-	type SilenceInterval,
-} from "./silence";
+import { detectSilenceIntervals, transcribeWav } from "./runtime";
+export {
+	detectSilenceIntervals,
+	executeTranscribeKit,
+	transcribeKitWavToCues,
+	offsetCaptionCues,
+	TRANSCRIBE_KIT_CHUNK_MS,
+} from "./runtime";
 
 const execFileAsync = promisify(execFile);
-
-async function executeWhisper(whisperExecutablePath: string, args: string[]) {
-	try {
-		await execFileAsync(whisperExecutablePath, args, {
-			timeout: 30 * 60 * 1000,
-			maxBuffer: 20 * 1024 * 1024,
-		});
-	} catch (error) {
-		if (isMissingWindowsWhisperRuntimeDependency(error)) {
-			throw new Error(
-				"Whisper could not start because the Microsoft Visual C++ x64 Redistributable is missing. Install it from https://aka.ms/vc14/vc_redist.x64.exe, then restart Recordly.",
-			);
-		}
-		throw error;
-	}
-}
 
 export async function ensureReadableFile(filePath: string, options?: { executable?: boolean }) {
 	await fs.access(filePath, fsConstants.R_OK);
@@ -195,30 +179,6 @@ export async function extractCaptionAudioSource(options: {
 	);
 }
 
-export async function detectSilenceIntervals(options: {
-	ffmpegPath: string;
-	wavPath: string;
-}): Promise<SilenceInterval[]> {
-	// ffmpeg writes silencedetect results to stderr; the null muxer just runs the filter.
-	const { stderr } = await execFileAsync(
-		options.ffmpegPath,
-		[
-			"-hide_banner",
-			"-nostats",
-			"-i",
-			options.wavPath,
-			"-af",
-			`silencedetect=noise=${SILENCE_NOISE_DB}dB:d=${SILENCE_DETECT_MIN_S}`,
-			"-f",
-			"null",
-			"-",
-		],
-		{ timeout: 5 * 60 * 1000, maxBuffer: 20 * 1024 * 1024 },
-	);
-
-	return parseSilenceIntervals(stderr ?? "");
-}
-
 export async function resolveTranscribeCliPath(preferredPath?: string | null) {
 	const candidatePaths = [
 		preferredPath?.trim() || null,
@@ -257,147 +217,6 @@ export async function resolveTranscribeCliPath(preferredPath?: string | null) {
 	throw new Error(
 		"TranscribeKit CLI (transcribe-cli) was not found. Please ensure it is installed in ~/.local/bin/ or build it with SwiftPM.",
 	);
-}
-
-export async function executeTranscribeKit(
-	transcribeCliPath: string,
-	audioPath: string,
-	outputDir: string,
-	language?: string,
-) {
-	let lang = "zh";
-	if (language && language.trim() && language.trim() !== "auto") {
-		lang = language.trim();
-	}
-
-	const args = [audioPath, "-o", outputDir, "-f", "srt", "-l", lang];
-
-	await execFileAsync(transcribeCliPath, args, {
-		timeout: 30 * 60 * 1000,
-		maxBuffer: 20 * 1024 * 1024,
-	});
-}
-
-export const TRANSCRIBE_KIT_CHUNK_MS = 25_000;
-
-export function offsetCaptionCues(
-	cues: CaptionCuePayload[],
-	offsetMs: number,
-): CaptionCuePayload[] {
-	if (offsetMs === 0) {
-		return cues;
-	}
-
-	return cues.map((cue) => ({
-		...cue,
-		startMs: cue.startMs + offsetMs,
-		endMs: cue.endMs + offsetMs,
-		words: cue.words?.map((word) => ({
-			...word,
-			startMs: word.startMs + offsetMs,
-			endMs: word.endMs + offsetMs,
-		})),
-	}));
-}
-
-async function getWavDurationMs(ffprobePath: string, wavPath: string): Promise<number> {
-	const { stdout } = await execFileAsync(
-		ffprobePath,
-		[
-			"-v",
-			"error",
-			"-show_entries",
-			"format=duration",
-			"-of",
-			"default=noprint_wrappers=1:nokey=1",
-			wavPath,
-		],
-		{ timeout: 30_000 },
-	);
-	const seconds = Number.parseFloat(stdout.trim());
-	if (!Number.isFinite(seconds) || seconds <= 0) {
-		throw new Error("Could not determine caption audio duration.");
-	}
-	return Math.round(seconds * 1000);
-}
-
-export async function transcribeKitWavToCues(options: {
-	transcribeCliPath: string;
-	wavPath: string;
-	outputDir: string;
-	language?: string;
-	ffmpegPath: string;
-	ffprobePath: string;
-}): Promise<CaptionCuePayload[]> {
-	const durationMs = await getWavDurationMs(options.ffprobePath, options.wavPath);
-	const shouldChunk = durationMs > TRANSCRIBE_KIT_CHUNK_MS + 2000;
-	const chunkStarts = shouldChunk
-		? Array.from(
-				{ length: Math.ceil(durationMs / TRANSCRIBE_KIT_CHUNK_MS) },
-				(_, index) => index * TRANSCRIBE_KIT_CHUNK_MS,
-			)
-		: [0];
-
-	const cues: CaptionCuePayload[] = [];
-	for (const startMs of chunkStarts) {
-		const remainingMs = durationMs - startMs;
-		const chunkDurationMs = shouldChunk
-			? Math.min(TRANSCRIBE_KIT_CHUNK_MS, remainingMs)
-			: durationMs;
-		let inputPath = options.wavPath;
-		let chunkDir = options.outputDir;
-		let chunkWav: string | null = null;
-
-		if (shouldChunk) {
-			chunkWav = path.join(options.outputDir, `chunk-${startMs}.wav`);
-			chunkDir = path.join(options.outputDir, `chunk-${startMs}`);
-			await fs.mkdir(chunkDir, { recursive: true });
-			await execFileAsync(
-				options.ffmpegPath,
-				[
-					"-y",
-					"-ss",
-					String(startMs / 1000),
-					"-t",
-					String(chunkDurationMs / 1000),
-					"-i",
-					options.wavPath,
-					"-c",
-					"copy",
-					chunkWav,
-				],
-				{ timeout: 60_000 },
-			);
-			inputPath = chunkWav;
-		}
-
-		const generatedSrtPath = path.join(
-			chunkDir,
-			`${path.basename(inputPath, path.extname(inputPath))}.srt`,
-		);
-		try {
-			await executeTranscribeKit(
-				options.transcribeCliPath,
-				inputPath,
-				chunkDir,
-				options.language,
-			);
-			const parsed = parseSrtCues(await fs.readFile(generatedSrtPath, "utf-8"));
-			cues.push(...offsetCaptionCues(parsed, startMs));
-		} catch (error) {
-			const message = error instanceof Error ? error.message : String(error);
-			if (!/未在音频中检测到人声音段|no speech|no caption/i.test(message)) {
-				throw error;
-			}
-		} finally {
-			await Promise.allSettled([
-				fs.rm(generatedSrtPath, { force: true }),
-				chunkWav ? fs.rm(chunkWav, { force: true }) : Promise.resolve(),
-			]);
-		}
-	}
-
-	return cues;
 }
 
 export function tokenizeCueText(text: string): string[] {
@@ -560,74 +379,22 @@ export async function generateAutoCaptionsFromVideo(options: {
 		const language =
 			options.language && options.language.trim() ? options.language.trim() : "auto";
 
-		let cues: CaptionCuePayload[] = [];
-
-		if (engine === "transcribe-kit") {
-			const transcribeCliPath = await resolveTranscribeCliPath(options.transcribeCliPath);
-			await ensureReadableFile(transcribeCliPath, { executable: true });
-
-			const tempDir = path.dirname(wavPath);
-			cues = await transcribeKitWavToCues({
-				transcribeCliPath,
-				wavPath,
-				outputDir: tempDir,
-				language,
-				ffmpegPath,
-				ffprobePath: getFfprobeBinaryPath(),
-			});
-		} else {
-			if (!options.whisperModelPath) {
-				throw new Error("Missing Whisper model path.");
-			}
-			const whisperExecutablePath = await resolveWhisperExecutablePath(
-				options.whisperExecutablePath,
-			);
-			const whisperModelPath = path.resolve(options.whisperModelPath);
-			await ensureReadableFile(whisperExecutablePath, { executable: true });
-			await ensureReadableFile(whisperModelPath);
-
-			const whisperBaseArgs = [
-				"-m",
-				whisperModelPath,
-				"-f",
-				wavPath,
-				"-osrt",
-				"-of",
-				outputBase,
-				"-l",
-				language,
-				"-np",
-			];
-
-			let jsonEnabled = true;
-			try {
-				await executeWhisper(whisperExecutablePath, [...whisperBaseArgs, "-ojf"]);
-			} catch (error) {
-				if (!shouldRetryWhisperWithoutJson(error)) {
-					throw error;
-				}
-
-				jsonEnabled = false;
-				console.warn(
-					"[auto-captions] Whisper runtime does not support JSON full output, retrying with SRT only:",
-					error,
-				);
-				await executeWhisper(whisperExecutablePath, whisperBaseArgs);
-			}
-
-			const timedCues = jsonEnabled
-				? parseWhisperJsonCues(await fs.readFile(jsonPath, "utf-8"))
-				: [];
-			if (jsonEnabled && timedCues.length === 0) {
-				console.warn(
-					"[auto-captions] Whisper JSON produced no word-timed cues; falling back to SRT (no word timings).",
-				);
-			}
-			cues =
-				timedCues.length > 0
-					? timedCues
-					: parseSrtCues(await fs.readFile(srtPath, "utf-8"));
-		}
+		const executable =
+			engine === "transcribe-kit"
+				? await resolveTranscribeCliPath(options.transcribeCliPath)
+				: await resolveWhisperExecutablePath(options.whisperExecutablePath);
+		await ensureReadableFile(executable, { executable: true });
+		if (options.whisperModelPath) await ensureReadableFile(options.whisperModelPath);
+		const cues = await transcribeWav({
+			engine,
+			executable,
+			model: options.whisperModelPath,
+			wavPath,
+			outputBase,
+			language,
+			ffmpegPath,
+			ffprobePath: getFfprobeBinaryPath(),
+		});
 
 		if (cues.length === 0) {
 			throw new Error("Speech recognition completed, but no caption cues were produced.");

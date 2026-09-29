@@ -29,6 +29,7 @@ export interface Asset {
 	hasAudio?: boolean;
 }
 export interface MainShot {
+	locked?: boolean;
 	name?: string;
 	instanceId?: string;
 	recordingId?: string;
@@ -57,6 +58,7 @@ export interface Card {
 }
 export type Shot = MainShot | Card;
 export interface BRoll {
+	candidateAssetIds?: string[];
 	id: string;
 	clipId: string;
 	assetId: string;
@@ -74,6 +76,9 @@ export interface BRoll {
 	crop?: CropRegion;
 }
 export interface Composition {
+	reviewDraft?: import("./review.ts").ReviewFile;
+	transcript?: import("./transcript.ts").TranscriptState;
+	reviewHistory?: { id: string; acceptedIds: string[]; plan: import("./review.ts").ReviewPlan }[];
 	effectsTime?: "timeline";
 	sources?: SyncedSource[];
 	assets: Asset[];
@@ -202,7 +207,11 @@ export function migrateProject(
 			})),
 		};
 	}
-	result.version = result.composition?.effectsTime === "timeline" ? 4 : 3;
+	result.version = result.composition?.transcript
+		? 5
+		: result.composition?.effectsTime === "timeline"
+			? 4
+			: 3;
 	return result as CompositionProject;
 }
 function split(composition: Composition, clipId: string, offsetMs: number) {
@@ -395,7 +404,11 @@ export function applyOperation(composition: Composition, op: Operation): Composi
 export function applyPlan(project: CompositionProject, plan: EditPlan): CompositionProject {
 	if (plan.version !== 1) throw new Error("Unsupported edit plan version");
 	const result = structuredClone(project);
-	result.version = result.composition?.effectsTime === "timeline" ? 4 : 3;
+	result.version = result.composition?.transcript
+		? 5
+		: result.composition?.effectsTime === "timeline"
+			? 4
+			: 3;
 	result.editor = { ...result.editor, ...plan.editor };
 	result.composition = { ...result.composition, ...plan.composition };
 	for (const op of plan.operations ?? [])

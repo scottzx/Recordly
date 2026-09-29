@@ -19,3 +19,25 @@ describe("projectFileHash", () => {
 		expect(hashProjectContents(original)).not.toBe(hashProjectContents(updated));
 	});
 });
+
+describe("loaded project protection", () => {
+	it("does not let a watcher notification authorize overwriting external changes", async () => {
+		const {
+			noteLoadedProject,
+			assertLoadedProjectUnchanged,
+			rememberProjectContents,
+			clearProjectFileHashes,
+		} = await import("./projectFileHash");
+		clearProjectFileHashes();
+		noteLoadedProject("/tmp/protected.recordly", "original");
+		rememberProjectContents("/tmp/protected.recordly", "external");
+		expect(() => assertLoadedProjectUnchanged("/tmp/protected.recordly", "external")).toThrow(
+			"STALE_BASE",
+		);
+		noteLoadedProject("/tmp/protected.recordly", "external");
+		expect(() =>
+			assertLoadedProjectUnchanged("/tmp/protected.recordly", "external"),
+		).not.toThrow();
+		clearProjectFileHashes();
+	});
+});

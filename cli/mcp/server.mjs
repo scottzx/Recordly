@@ -1,3 +1,4 @@
+import { oralcutTools, callOralcutTool } from "./oralcutTools.mjs";
 import { projectCommand } from "../core/compositionProject.mjs";
 import readline from "node:readline";
 import path from "node:path";
@@ -8,6 +9,7 @@ import { buildProjectFile } from "../core/projectBuilder.mjs";
 import { listSources, listWindows } from "../core/sources.mjs";
 
 const TOOLS = [
+	...oralcutTools,
  ...["inspect", "apply", "validate", "preview"].map(action => ({
  name: `recordly_project_${action}`,
  description: `Composition project ${action}. All timestamps are milliseconds. Uses the same schema as recordly project.`,
@@ -230,7 +232,9 @@ export async function runMcpServer() {
 			try {
 				let resultData = null;
 
-				if (name.startsWith("recordly_project_")) {
+				if (oralcutTools.some((tool) => tool.name === name)) {
+					resultData = await callOralcutTool(name, args);
+				} else if (name.startsWith("recordly_project_")) {
  resultData = await projectCommand(name.slice("recordly_project_".length), args.inputPath, args);
  } else if (name === "recordly_doctor") {
 					resultData = checkDoctor();

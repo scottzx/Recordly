@@ -258,12 +258,18 @@ export default function VideoEditor() {
 	} = projectController;
 
 	const compositionEditing = useCompositionEditing({
+		projectPath: project.currentProjectPath,
+		saveProject: () => projectController.saveActions.saveProject(false),
 		state: timeline,
 		editor: projectController.snapshot.currentPersistedEditorState,
 		source: projectController.snapshot.currentSourcePath,
 		duration,
 		time: currentTime,
 		setSection: setActiveEffectSection,
+		seek: (timeMs) => {
+			ui.videoPlaybackRef.current?.seekTimeline(timeMs / 1000);
+			ui.setCurrentTime(timeMs / 1000);
+		},
 	});
 
 	const editing = useTimelineEditingController({

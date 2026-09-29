@@ -1,5 +1,6 @@
 #!/usr/bin/env node
 
+import { oralcutCommand, oralcutResult } from "../core/oralcut.mjs";
 import { parseArgs } from "node:util";
 import { runDoctor } from "../commands/doctor.mjs";
 import { runSources } from "../commands/sources.mjs";
@@ -20,6 +21,10 @@ USAGE:
   recordly <command> [subcommand] [options]
 
 COMMANDS:
+  library <list|import>       Browse/import media (--query, --json)
+  project create             Create project (--media ID repeated, -o new.recordly)
+  transcript <generate|export> <file>  --sources mapping.json --engine whisper|transcribe-kit --model path --executable path --language auto --format markdown -o file
+  review <create|inspect|apply> <file>  --transcript file --suggestions file|--pauses --project base --selection file --dry-run -o new-file
   project <inspect|apply|validate|preview> <file>  Inspect/edit composition projects
   doctor                     Run system permission and runtime diagnostics
   sources [list]             List available displays and open application windows
@@ -95,7 +100,25 @@ async function main() {
 		args: argv.slice(1),
 		options: {
 			json: { type: "boolean", default: false },
-            plan: { type: "string" }, at: { type: "string" }, from: { type: "string" }, to: { type: "string" },
+			media: { type: "string", multiple: true },
+			sources: { type: "string" },
+			engine: { type: "string" },
+			model: { type: "string" },
+			executable: { type: "string" },
+			language: { type: "string" },
+			format: { type: "string" },
+			transcript: { type: "string" },
+			suggestions: { type: "string" },
+			pauses: { type: "boolean" },
+			project: { type: "string" },
+			selection: { type: "string" },
+			"dry-run": { type: "boolean" },
+			query: { type: "string" },
+			force: { type: "boolean" },
+			plan: { type: "string" },
+			at: { type: "string" },
+			from: { type: "string" },
+			to: { type: "string" },
 			window: { type: "string" },
 			display: { type: "string" },
 			mic: { type: "boolean", default: false },
@@ -122,17 +145,39 @@ async function main() {
 			"zoom-easing": { type: "string" },
 			"motion-blur": { type: "string" },
 		},
-		strict: false,
+		strict:
+			["library", "transcript", "review"].includes(command) ||
+			(command === "project" && argv[1] === "create"),
 		allowPositionals: true,
 	});
 
+	if (
+		["library", "transcript", "review"].includes(command) ||
+		(command === "project" && positionals[0] === "create")
+	) {
+		try {
+			const data = await oralcutCommand(command, positionals[0], positionals[1], values);
+			console.log(JSON.stringify({ ok: true, data, error: null, warnings: [] }, null, 2));
+		} catch (error) {
+			console.log(JSON.stringify(oralcutResult(error)));
+			process.exitCode =
+				error.code === "CANCELLED"
+					? 130
+					: ["INVALID_INPUT", "INVALID_REFERENCE", "CONFLICTING_SUGGESTIONS"].includes(
+								error.code,
+							)
+						? 2
+						: 1;
+		}
+		return;
+	}
 	switch (command) {
- case "project": {
- const result = await projectCommand(positionals[0], positionals[1], values);
- console.log(JSON.stringify(result,null,2));
- if (result.valid === false) process.exitCode = 1;
- break;
- }
+		case "project": {
+			const result = await projectCommand(positionals[0], positionals[1], values);
+			console.log(JSON.stringify(result, null, 2));
+			if (result.valid === false) process.exitCode = 1;
+			break;
+		}
 		case "doctor":
 			await runDoctor(values);
 			break;
@@ -168,6 +213,14 @@ async function main() {
 }
 
 main().catch((err) => {
+	if (
+		["library", "transcript", "review"].includes(argv[0]) ||
+		(argv[0] === "project" && argv[1] === "create")
+	) {
+		console.log(JSON.stringify(oralcutResult({ code: "INVALID_INPUT", message: err.message })));
+		process.exitCode = 2;
+		return;
+	}
 	console.error(`Unexpected error: ${err.message}`);
 	process.exit(1);
 });

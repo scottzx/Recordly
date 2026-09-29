@@ -1,5 +1,5 @@
 import { build } from "esbuild";
-import { chmod, copyFile, mkdir } from "node:fs/promises";
+import { chmod, copyFile, mkdir, cp, rename, rm } from "node:fs/promises";
 import { execFileSync } from "node:child_process";
 import { createRequire } from "node:module";
 import path from "node:path";
@@ -15,6 +15,7 @@ await build({
 	format: "esm",
 	target: "node22",
 });
+await cp("skills/recordly-oralcut", "dist-cli/skills/recordly-oralcut", { recursive: true });
 await copyFile("cli/recordly", "dist-cli/recordly");
 await chmod("dist-cli/recordly", 0o755);
 
@@ -24,7 +25,13 @@ if (process.platform === "darwin") {
 	execFileSync("xcrun", ["lipo", ffprobe, "-verify_arch", arch === "arm64" ? "arm64" : "x86_64"]);
 	const destination = path.join("electron/native/bin", `darwin-${arch}`);
 	await mkdir(destination, { recursive: true });
-	await copyFile(ffprobe, path.join(destination, "ffprobe"));
-	await chmod(path.join(destination, "ffprobe"), 0o755);
+	const temporary = path.join(destination, `ffprobe.${process.pid}.tmp`);
+	try {
+		await copyFile(ffprobe, temporary);
+		await chmod(temporary, 0o755);
+		await rename(temporary, path.join(destination, "ffprobe"));
+	} finally {
+		await rm(temporary, { force: true });
+	}
 }
 console.log("[build-cli] Bundled CLI, recording daemon, launcher and native FFprobe.");

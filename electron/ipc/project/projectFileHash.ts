@@ -2,6 +2,7 @@ import { createHash } from "node:crypto";
 import path from "node:path";
 
 const selfWriteHashes = new Map<string, string>();
+const loadedHashes = new Map<string, string>();
 
 export function normalizeWatchedProjectPath(projectPath: string): string {
 	const resolved = path.resolve(projectPath);
@@ -29,4 +30,15 @@ export function isSelfProjectWrite(projectPath: string, contents: string): boole
 
 export function clearProjectFileHashes() {
 	selfWriteHashes.clear();
+	loadedHashes.clear();
+}
+
+/** The last version explicitly loaded by the editor, independent of watcher notifications. */
+export function noteLoadedProject(projectPath: string, contents: string) {
+	loadedHashes.set(normalizeWatchedProjectPath(projectPath), hashProjectContents(contents));
+}
+export function assertLoadedProjectUnchanged(projectPath: string, contents: string) {
+	const expected = loadedHashes.get(normalizeWatchedProjectPath(projectPath));
+	if (expected && expected !== hashProjectContents(contents))
+		throw new Error("STALE_BASE: 磁盘工程已改变，请另存当前编辑或重新载入外部版本。");
 }

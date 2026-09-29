@@ -52,6 +52,8 @@
 		"release:create": "node scripts/create-release.mjs",
 		"test": "vitest --run",
 		"test:composition-export": "node scripts/test-composition-export.mjs",
+		"test:oralcut-desktop": "node scripts/test-oralcut-desktop.mjs",
+		"test:oralcut-export": "node scripts/test-oralcut-export.mjs",
 		"test:library-export": "node scripts/test-library-export.mjs",
 		"test:watch": "vitest",
 		"version:sync": "node scripts/sync-version.mjs",

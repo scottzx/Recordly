@@ -8,6 +8,19 @@ import {
 import { createSourceClip, layoutLayers, type SyncedSource } from "./compositionSources.ts";
 
 export interface LibraryMedia {
+	origin?: "recording" | "imported";
+	durationMs?: number;
+	width?: number;
+	height?: number;
+	hasAudio?: boolean;
+	thumbnailPath?: string;
+	thumbnailError?: string;
+	fingerprint?: string;
+	contentHash?: string;
+	analysisStatus?: "pending" | "running" | "ready" | "failed" | "missing";
+	error?: string;
+	tags?: string[];
+	favorite?: boolean;
 	id: string;
 	name: string;
 	videoPath: string;

@@ -1,4 +1,4 @@
-import { type RefObject, useCallback, useEffect, useRef } from "react";
+import { type RefObject, type MutableRefObject, useCallback, useEffect, useRef } from "react";
 import { toast } from "sonner";
 import { createProjectData, type EditorProjectData } from "../projectPersistence";
 import type { useProjectState } from "../state/useProjectState";
@@ -14,6 +14,7 @@ type SaveProjectOptions = {
 };
 
 type UseProjectSaveActionsInput = {
+	externalChangeRef: MutableRefObject<string | null>;
 	project: ReturnType<typeof useProjectState>;
 	currentSourcePath: string | null;
 	currentProjectSnapshot: EditorProjectData | null;
@@ -30,6 +31,7 @@ type UseProjectSaveActionsInput = {
 };
 
 export function useProjectSaveActions({
+	externalChangeRef,
 	project,
 	currentSourcePath,
 	currentProjectSnapshot,
@@ -75,6 +77,19 @@ export function useProjectSaveActions({
 		async (forceSaveAs: boolean, options?: SaveProjectOptions) => {
 			clearPendingAutosave();
 			return queueSave(async () => {
+				if (externalChangeRef.current && !forceSaveAs) {
+					if (!options?.silent)
+						toast.error("磁盘工程已改变，请载入外部版本或另存当前编辑。");
+					return false;
+				}
+				if (
+					lastSavedSnapshot &&
+					lastSavedSnapshot.version < 5 &&
+					currentProjectSnapshot?.version === 5
+				) {
+					if (options?.silent) return false;
+					return openProjectSaveDialog(`${projectDisplayName} v5`);
+				}
 				if (currentSourcePath === null) {
 					if (!options?.silent) toast.error("No video loaded");
 					return false;
@@ -135,7 +150,7 @@ export function useProjectSaveActions({
 						cloneStructured(
 							createProjectData(
 								projectData.videoPath,
-								projectData.editor,
+								{ ...projectData.editor, composition: projectData.composition },
 								result.projectId ?? projectData.projectId ?? null,
 							),
 						),
@@ -173,6 +188,8 @@ export function useProjectSaveActions({
 		() => window.electronAPI.onRequestSaveBeforeClose(() => saveProject(false)),
 		[saveProject],
 	);
+	const latestSave = useRef(saveProject);
+	latestSave.current = saveProject;
 	useEffect(() => {
 		if (!currentProjectPath || !hasUnsavedChanges) {
 			clearPendingAutosave();
@@ -180,7 +197,7 @@ export function useProjectSaveActions({
 		}
 		autosaveTimeoutRef.current = window.setTimeout(() => {
 			autosaveTimeoutRef.current = null;
-			void saveProject(false, {
+			void latestSave.current(false, {
 				silent: true,
 				remountPreviewAfterSave: false,
 				refreshLibraryAfterSave: false,
@@ -188,7 +205,7 @@ export function useProjectSaveActions({
 			});
 		}, PROJECT_AUTOSAVE_DELAY_MS);
 		return clearPendingAutosave;
-	}, [clearPendingAutosave, currentProjectPath, hasUnsavedChanges, saveProject]);
+	}, [clearPendingAutosave, currentProjectPath, hasUnsavedChanges, currentProjectSnapshot]);
 	useEffect(() => clearPendingAutosave, [clearPendingAutosave]);
 
 	const saveProjectWithName = useCallback(
@@ -230,7 +247,7 @@ export function useProjectSaveActions({
 					cloneStructured(
 						createProjectData(
 							projectData.videoPath,
-							projectData.editor,
+							{ ...projectData.editor, composition: projectData.composition },
 							result.projectId ?? projectData.projectId ?? null,
 						),
 					),

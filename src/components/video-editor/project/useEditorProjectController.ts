@@ -183,6 +183,7 @@ export function useEditorProjectController(input: Input) {
 		syncActiveVideoSource: lifecycle.syncActiveVideoSource,
 	});
 	const saveActions = useProjectSaveActions({
+		externalChangeRef: lifecycle.externalChangeRef,
 		project: input.project,
 		currentSourcePath: snapshot.currentSourcePath,
 		currentProjectSnapshot: lifecycle.currentProjectSnapshot,

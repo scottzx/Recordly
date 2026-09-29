@@ -1,8 +1,15 @@
+import { transcriptionRuntime } from "./oralcut.mjs";
 import { execFileSync } from "node:child_process";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
-import { getElectronBinaryPath, getFfmpegPath, getNativeBinaryPath, getFfprobePath, repoRoot } from "./paths.mjs";
+import {
+	getElectronBinaryPath,
+	getFfmpegPath,
+	getNativeBinaryPath,
+	getFfprobePath,
+	repoRoot,
+} from "./paths.mjs";
 
 export function checkDoctor() {
 	const checks = {
@@ -46,13 +53,16 @@ export function checkDoctor() {
 
 	// Use a shipped native helper: installed users do not need Xcode or Swift.
 	try {
-		const permissions = JSON.parse(execFileSync(getNativeBinaryPath("recordly-cli-permissions"), [], {
-			encoding: "utf8", timeout: 10000,
-		}));
+		const permissions = JSON.parse(
+			execFileSync(getNativeBinaryPath("recordly-cli-permissions"), [], {
+				encoding: "utf8",
+				timeout: 10000,
+			}),
+		);
 		checks.permissions.details = permissions;
 		checks.permissions.ok = permissions.screenRecording === true;
 	} catch (e) {
- checks.permissions.ok = false;
+		checks.permissions.ok = false;
 		checks.permissions.details = {
 			checkError: e.message,
 		};
@@ -62,9 +72,24 @@ export function checkDoctor() {
 
 	return {
 		healthy: allOk,
-        recordingReady: allOk,
-        exportReady: [getElectronBinaryPath(), getFfmpegPath(), getFfprobePath(), path.join(repoRoot, "dist", "index.html"), path.join(repoRoot, "dist-electron", "main.cjs")].every(p => p && fs.existsSync(p)),
-        exportRequirements: {recordingPermissionsRequired:false, builtRenderer:fs.existsSync(path.join(repoRoot,"dist","index.html"))},
+		projectVersions: [1, 2, 3, 4, 5],
+		reviewPlanVersions: [1],
+		transcription: {
+			whisper: transcriptionRuntime({ engine: "whisper" }),
+			transcribeKit: transcriptionRuntime({ engine: "transcribe-kit" }),
+		},
+		recordingReady: allOk,
+		exportReady: [
+			getElectronBinaryPath(),
+			getFfmpegPath(),
+			getFfprobePath(),
+			path.join(repoRoot, "dist", "index.html"),
+			path.join(repoRoot, "dist-electron", "main.cjs"),
+		].every((p) => p && fs.existsSync(p)),
+		exportRequirements: {
+			recordingPermissionsRequired: false,
+			builtRenderer: fs.existsSync(path.join(repoRoot, "dist", "index.html")),
+		},
 		checks,
 	};
 }

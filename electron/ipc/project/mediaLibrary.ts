@@ -9,7 +9,7 @@ const writes = new Map<string, Promise<LibraryMedia>>();
 const processing = new Set<string>();
 const idFor = (file: string) =>
 	createHash("sha256").update(path.resolve(file)).digest("hex").slice(0, 24);
-async function directory() {
+export async function libraryDirectory() {
 	const dir = path.join(await getRecordingsDir(), "Library");
 	await fs.mkdir(dir, { recursive: true });
 	return dir;
@@ -20,6 +20,7 @@ export async function registerLibraryMedia(
 		webcamPath?: string | null;
 		timeOffsetMs?: number;
 		hideOverlayCursorByDefault?: boolean;
+		origin?: "recording" | "imported";
 	},
 	status: LibraryMedia["status"] = "ready",
 ): Promise<LibraryMedia> {
@@ -30,7 +31,7 @@ export async function registerLibraryMedia(
 	const operation = (writes.get(id) ?? Promise.resolve())
 		.catch(() => undefined)
 		.then(async () => {
-			const file = path.join(await directory(), `${id}.json`);
+			const file = path.join(await libraryDirectory(), `${id}.json`);
 			let existing: LibraryMedia | undefined;
 			try {
 				existing = JSON.parse(await fs.readFile(file, "utf8"));
@@ -46,6 +47,7 @@ export async function registerLibraryMedia(
 				...session,
 				videoPath,
 				status,
+				origin: session.origin ?? existing?.origin ?? "recording",
 			};
 			const temp = `${file}.${randomUUID()}.tmp`;
 			try {
@@ -64,7 +66,7 @@ export async function registerLibraryMedia(
 	}
 }
 export async function listLibraryMedia(): Promise<LibraryMedia[]> {
-	const dir = await directory();
+	const dir = await libraryDirectory();
 	const entries: LibraryMedia[] = [];
 	for (const name of await fs.readdir(dir)) {
 		if (!name.endsWith(".json")) continue;
@@ -100,11 +102,11 @@ export async function listLibraryMedia(): Promise<LibraryMedia[]> {
 }
 export async function getLibraryMedia(id: string): Promise<LibraryMedia> {
 	if (!/^[a-f0-9]{24}$/.test(id)) throw new Error("Invalid library ID");
-	return JSON.parse(await fs.readFile(path.join(await directory(), `${id}.json`), "utf8"));
+	return JSON.parse(await fs.readFile(path.join(await libraryDirectory(), `${id}.json`), "utf8"));
 }
 
 export async function protectedLibraryPaths(): Promise<string[]> {
-	const dir = await directory(),
+	const dir = await libraryDirectory(),
 		paths: string[] = [];
 	for (const name of await fs.readdir(dir)) {
 		if (!name.endsWith(".json")) continue;

@@ -107,6 +107,8 @@ export function normalizeCursorClickEffectColor(
 }
 
 export type EditorEffectSection =
+	| "transcript"
+	| "review"
 	| "library"
 	| "composition"
 	| "scene"

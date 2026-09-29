@@ -1,3 +1,4 @@
+import { TranscriptPanel } from "../TranscriptPanel";
 import { MediaLibraryPanel } from "../../media-library/MediaLibraryPanel";
 import { useCompositionContext } from "../composition/useCompositionEditing";
 import { CompositionSettingsPanel } from "../composition/CompositionSettingsPanel";
@@ -12,7 +13,7 @@ import {
 } from "@phosphor-icons/react";
 import { motion } from "motion/react";
 import type { ComponentProps, Dispatch, SetStateAction } from "react";
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import { toast } from "sonner";
 import type { useI18n } from "@/contexts/I18nContext";
 import ExtensionManager from "../ExtensionManager";
@@ -28,9 +29,12 @@ type Props = {
 
 export function EditorSidebar({ t, activeSection, setActiveSection, settingsPanelProps }: Props) {
 	const composition = useCompositionContext();
+	const [collapsed, setCollapsed] = useState(false);
 	const sourceEditing = Boolean(composition?.project?.composition.sources);
 	const sections = useMemo(
 		() => [
+			{ id: "transcript" as const, label: "文稿", icon: ClosedCaptioning },
+			{ id: "review" as const, label: "修改审阅", icon: Sparkle },
 			{ id: "library" as const, label: "素材库", icon: Camera },
 			{ id: "composition" as const, label: "镜头与素材", icon: Camera },
 			{ id: "scene" as const, label: t("settings.sections.scene", "Scene"), icon: Sparkle },
@@ -65,7 +69,10 @@ export function EditorSidebar({ t, activeSection, setActiveSection, settingsPane
 							<div key={section.id} className="flex items-center">
 								<motion.button
 									type="button"
-									onClick={() => setActiveSection(section.id)}
+									onClick={() => {
+										setActiveSection(section.id);
+										setCollapsed(false);
+									}}
 									title={section.label}
 									className="group relative flex h-9 w-9 items-center justify-center rounded-lg outline-none focus:outline-none focus-visible:outline-none"
 									animate={{ opacity: isActive ? 1 : 0.55 }}
@@ -130,9 +137,39 @@ export function EditorSidebar({ t, activeSection, setActiveSection, settingsPane
 					</motion.button>
 				</div>
 			</div>
-			{activeSection === "library" ? (
+			<button
+				type="button"
+				className="self-start text-xs"
+				aria-label={collapsed ? "展开属性面板" : "收起属性面板"}
+				onClick={() => setCollapsed((v) => !v)}
+			>
+				{collapsed ? "›" : "‹"}
+			</button>
+			{collapsed ? null : activeSection === "transcript" || activeSection === "review" ? (
+				<TranscriptPanel reviewOnly={activeSection === "review"} />
+			) : activeSection === "library" ? (
 				<MediaLibraryPanel
 					compact
+					usedCounts={Object.fromEntries(
+						(composition?.project?.composition.shots ?? []).flatMap((s) =>
+							s.kind === "main" && s.recordingId
+								? [
+										[
+											s.recordingId,
+											new Set(
+												composition!.project!.composition.shots.flatMap(
+													(x) =>
+														x.kind === "main" &&
+														x.recordingId === s.recordingId
+															? [x.instanceId ?? x.id]
+															: [],
+												),
+											).size,
+										],
+									]
+								: [],
+						),
+					)}
 					onInsert={(id) => composition!.insertRecording(id, composition!.time)}
 				/>
 			) : activeSection === "composition" || (sourceEditing && activeSection === "webcam") ? (

@@ -1,3 +1,4 @@
+import { registerOralCutHandlers } from "./register/oralcut";
 import { BrowserWindow } from "electron";
 import { registerAnnouncementHandlers } from "./register/announcements";
 import { registerAssetHandlers } from "./register/assets";
@@ -69,6 +70,7 @@ export function registerIpcHandlers(
 	registerAssetHandlers();
 	registerExportHandlers();
 	registerCaptionHandlers();
+	registerOralCutHandlers();
 	registerProjectHandlers();
 	registerSettingsHandlers();
 }

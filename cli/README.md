@@ -141,3 +141,16 @@ Add to your `claude_desktop_config.json` or Antigravity MCP settings:
   }
 }
 ```
+
+## 文稿粗剪与审阅（v2.1 开发版）
+
+`library list/import`、`project create`、`transcript generate/export`、`review create/inspect/apply` 与对应的八个 MCP 工具已实现。新增命令返回单个 `{ok,data,error,warnings}` JSON 对象，进度写 stderr；旧命令保持原协议。运行 `recordly --help` 查看参数。
+
+完整操作见 [recordly-oralcut Skill](../skills/recordly-oralcut/SKILL.md)。将仓库的 `skills/recordly-oralcut` 目录复制到所用 Agent 的技能目录（例如 `~/.codex/skills/recordly-oralcut`），然后调用 `$recordly-oralcut`。不需要修改全局 Agent 配置。开发构建可运行 `npm run build:cli` 后使用 `node dist-cli/bin/recordly.mjs`；安装版使用原有 `recordly` 启动器，无需另装 Node。
+
+- 多音轨工程通过 `--sources sources.json` 指定实例到讲解来源的映射；唯一音轨自动选择。
+- 引擎可用性见 `doctor --json` 的 `transcription`。配置 `--engine whisper --model /path/model.bin` 或使用已安装 TranscribeKit。支持 `--executable`、`--language`、`--force`；取消返回 130，完整缓存保留。
+- CLI 默认使用安装版 Recordly 数据目录。连接开发版素材库时设置 `RECORDLY_USER_DATA` 为该开发实例的用户数据目录（macOS 通常为 `~/Library/Application Support/Recordly-dev`）。
+- Review apply 要求明确 selection；dry-run 不写文件。`STALE_BASE`、`MEDIA_CHANGED`、`INVALID_REFERENCE` 和 `CONFLICTING_SUGGESTIONS` 不会部分应用。已有输出返回 `OUTPUT_EXISTS`。
+- 含文稿的工程保存为 v5。旧工程在 GUI 首次迁移时要求另存；原工程保留。旧版 Recordly 不支持新文稿工作区，不应打开并重存 v5 工程。
+- 文稿编辑以句子／引擎分段为单位，不伪造字级音频边界。字幕校对和声画删除分别操作。建议需要在真实口播素材上试听，不能仅凭识别文本判定口误。

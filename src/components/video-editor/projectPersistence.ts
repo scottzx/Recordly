@@ -1107,7 +1107,11 @@ export function createProjectData(
 	const { composition, ...editorState } = editor;
 	return {
 		...(composition ? { composition } : {}),
-		version: composition?.effectsTime === "timeline" ? 4 : PROJECT_VERSION,
+		version: composition?.transcript
+			? 5
+			: composition?.effectsTime === "timeline"
+				? 4
+				: PROJECT_VERSION,
 		...(typeof projectId === "string" && projectId.trim().length > 0 ? { projectId } : {}),
 		videoPath,
 		editor: editorState,

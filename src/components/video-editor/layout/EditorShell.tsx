@@ -179,6 +179,18 @@ export function EditorShell(props: Props) {
 				exportMessage={exportMessage}
 			/>
 			<EditorAnnouncementBanner />
+			{lifecycle.externalProjectPath && (
+				<div
+					role="alert"
+					className="flex flex-wrap items-center gap-3 bg-amber-500/10 px-5 py-2 text-sm"
+				>
+					<span>磁盘工程已改变，当前编辑已保留，自动保存已暂停。</span>
+					<button onClick={() => void lifecycle.loadExternalProject()}>
+						{hasUnsavedChanges ? "载入外部版本（放弃未保存修改）" : "载入外部版本"}
+					</button>
+					<button onClick={() => void saveActions.saveProject(true)}>另存当前编辑</button>
+				</div>
+			)}
 			<button
 				className="self-start px-5 py-1 text-xs text-blue-500"
 				onClick={() => {

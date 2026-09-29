@@ -1,3 +1,4 @@
+import { prepareTranscriptProject } from "../../../../shared/transcript";
 import { projectSourceRegions } from "./timelineProjection";
 import { projectCaptionCues } from "../captionTimeline";
 import { compositionClips } from "./timelineProjection";
@@ -41,6 +42,9 @@ export function useCompositionEditing({
 	duration,
 	time,
 	setSection,
+	seek,
+	projectPath,
+	saveProject,
 }: {
 	state: ReturnType<typeof useTimelineState>;
 	editor: Partial<ProjectEditorState>;
@@ -48,6 +52,9 @@ export function useCompositionEditing({
 	duration: number;
 	time: number;
 	setSection: (section: EditorEffectSection) => void;
+	seek: (timeMs: number) => void;
+	projectPath: string | null;
+	saveProject: () => Promise<boolean>;
 }) {
 	const project = useMemo(
 		() =>
@@ -210,6 +217,36 @@ export function useCompositionEditing({
 	};
 	return {
 		project: composed,
+		projectPath,
+		saveProject,
+		seek,
+		commitSnapshot: (next: CompositionProject) => {
+			const errors = validateComposition(next);
+			if (errors.length) {
+				toast.error(errors.join("\n"));
+				return false;
+			}
+			state.setComposition(next.composition);
+			state.setZoomRegions(next.editor.zoomRegions ?? []);
+			state.setAnnotationRegions(next.editor.annotationRegions ?? []);
+			state.setAutoCaptions(next.editor.autoCaptions ?? []);
+			if (next.editor.autoCaptionSettings)
+				state.setAutoCaptionSettings(next.editor.autoCaptionSettings);
+			return true;
+		},
+		prepareTranscript: () => {
+			if (!composed) return;
+			const next = prepareTranscriptProject(composed);
+			next.composition.transcript ??= {
+				documents: [],
+				sourceSelections: {},
+				corrections: {},
+			};
+			state.setComposition(next.composition);
+			state.setZoomRegions(next.editor.zoomRegions ?? []);
+			state.setAnnotationRegions(next.editor.annotationRegions ?? []);
+			state.setAutoCaptions(next.editor.autoCaptions ?? []);
+		},
 		insertRecording: async (id: string, atMs: number) => {
 			if (inserting.current) {
 				toast.info("正在插入素材，请稍候");

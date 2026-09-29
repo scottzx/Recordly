@@ -512,6 +512,24 @@ contextBridge.exposeInMainWorld("electronAPI", {
 		ipcRenderer.on("open-editing-project-request", listener);
 		return () => ipcRenderer.removeListener("open-editing-project-request", listener);
 	},
+	transcriptGenerate: (project: unknown, selections: Record<string, string>, options: unknown) =>
+		ipcRenderer.invoke("transcript-generate", project, selections, options),
+	transcriptCancel: (id: string) => ipcRenderer.invoke("transcript-cancel", id),
+	onTranscriptProgress: (callback: (value: { id: string; message: string }) => void) => {
+		const listener = (
+			_event: Electron.IpcRendererEvent,
+			value: { id: string; message: string },
+		) => callback(value);
+		ipcRenderer.on("transcript-progress", listener);
+		return () => ipcRenderer.removeListener("transcript-progress", listener);
+	},
+	oralcutFingerprints: (project: unknown) => ipcRenderer.invoke("oralcut-fingerprints", project),
+	oralcutImport: () => ipcRenderer.invoke("oralcut-import"),
+	oralcutExport: (data: unknown, name: string) =>
+		ipcRenderer.invoke("oralcut-export", data, name),
+	libraryUpdate: (id: string, patch: unknown) => ipcRenderer.invoke("library-update", id, patch),
+	libraryRetry: (id: string) => ipcRenderer.invoke("library-retry", id),
+	libraryRelocate: (id: string) => ipcRenderer.invoke("library-relocate", id),
 	libraryList: () => ipcRenderer.invoke("library-list"),
 	libraryResolve: (id: string) => ipcRenderer.invoke("library-resolve", id),
 	libraryPickProject: () => ipcRenderer.invoke("library-pick-project"),
