@@ -2306,7 +2306,7 @@ export function SettingsPanel({
 
 			<div className="rounded-lg bg-foreground/[0.03] px-2.5 py-2 space-y-3">
 				{/* Engine Selector */}
-				<div className="flex items-center justify-between gap-3">
+				<div className="flex flex-col gap-2">
 					<div className="text-sm font-medium text-foreground">
 						{tSettings("captions.engine", "识别引擎")}
 					</div>
@@ -2316,7 +2316,7 @@ export function SettingsPanel({
 							updateAutoCaptionSettings({ engine: value })
 						}
 					>
-						<SelectTrigger className="h-10 w-[200px] rounded-xl border-foreground/10 bg-foreground/5 text-sm text-foreground hover:bg-foreground/10">
+						<SelectTrigger className="h-10 w-full rounded-xl border-foreground/10 bg-foreground/5 text-sm text-foreground hover:bg-foreground/10">
 							<SelectValue />
 						</SelectTrigger>
 						<SelectContent className="border-foreground/10 bg-editor-surface-alt text-foreground">
