@@ -189,8 +189,8 @@ export function EditorShell(props: Props) {
 					<button onClick={() => void saveActions.saveProject(true)}>另存当前编辑</button>
 				</div>
 			)}
-			<div className="editor-workspace relative flex min-h-0 flex-1 flex-col gap-3 p-4">
-				<div className="relative z-10 flex min-h-0 flex-1 gap-3">
+			<div className="editor-workspace relative flex min-h-0 flex-1 flex-col gap-2 p-2">
+				<div className="relative z-10 flex min-h-0 flex-1 gap-2">
 					<EditorSidebar
 						onReturnHome={() => {
 							ui.setIsPlaying(false);
