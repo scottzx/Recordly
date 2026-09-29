@@ -24,7 +24,7 @@ import { DEFAULT_AUTO_CAPTION_SETTINGS } from "./types";
 
 const timecode = (ms: number) =>
 	`${Math.floor(ms / 60000)}:${String(Math.floor(ms / 1000) % 60).padStart(2, "0")}`;
-const button = "min-h-8 rounded-md border border-border px-2.5 py-1.5 text-xs font-medium transition-colors hover:bg-muted focus-visible:outline-primary disabled:cursor-not-allowed disabled:opacity-40";
+const button = "min-h-7 rounded-md border border-border px-2 py-1 text-xs font-medium transition-colors hover:bg-muted focus-visible:outline-primary disabled:cursor-not-allowed disabled:opacity-40";
 export function TranscriptPanel({ reviewOnly = false }: { reviewOnly?: boolean }) {
 	const ctx = useCompositionContext()!;
 	const current = useRef(ctx);
@@ -325,7 +325,7 @@ export function TranscriptPanel({ reviewOnly = false }: { reviewOnly?: boolean }
 			className="flex w-[320px] min-h-0 flex-col overflow-y-auto rounded-xl bg-card p-3 text-sm"
 			aria-label={reviewOnly ? "修改审阅" : "文稿"}
 		>
-			<h2 className="mb-3 text-base font-semibold">{reviewOnly ? "修改审阅" : "全文文稿"}</h2>
+			<h2 className="mb-1.5 text-base font-semibold">{reviewOnly ? "修改审阅" : "全文文稿"}</h2>
 			{!reviewOnly && (
 				<>
 					<input
@@ -334,10 +334,10 @@ export function TranscriptPanel({ reviewOnly = false }: { reviewOnly?: boolean }
 						type="search"
 						value={query}
 						onChange={(e) => setQuery(e.target.value)}
-						className="mb-2 rounded border bg-transparent p-2"
+						className="mb-2 rounded border bg-transparent px-2 py-1"
 					/>
 					{rows.length > 0 && (
-						<div className="sticky top-0 z-10 mb-3 flex items-center justify-between gap-2 border-b border-border bg-editor-panel py-2" aria-label="文稿选句操作">
+						<div className="sticky top-0 z-10 mb-1.5 flex items-center justify-between gap-2 border-b border-border bg-editor-panel py-1" aria-label="文稿选句操作">
 							<span className="text-xs text-muted-foreground" role="status">{selected.length ? `已选 ${selected.length} 句` : "点击选句 · Shift 连选"}</span>
 						<button
 							disabled={busy || !selected.length}
@@ -348,7 +348,7 @@ export function TranscriptPanel({ reviewOnly = false }: { reviewOnly?: boolean }
 						</button>
 						</div>
 					)}
-					<details key={state.documents.length ? "ready" : "empty"} open={!state.documents.length} className="mb-3 border-b border-border pb-3">
+					<details key={state.documents.length ? "ready" : "empty"} open={!state.documents.length} className="mb-1.5 border-b border-border pb-1">
 						<summary className="py-1 text-xs font-medium text-muted-foreground">转写与字幕工具</summary>
 					{timeline(project.composition)
 						.filter((e) => e.shot.kind === "main")
@@ -372,7 +372,7 @@ export function TranscriptPanel({ reviewOnly = false }: { reviewOnly?: boolean }
 											shot.sourceClips?.some((c) => c.sourceId === s.id),
 									) ?? [];
 							return (
-								<label key={instance} className="my-3 grid gap-1 text-xs">
+								<label key={instance} className="my-1.5 grid gap-1 text-xs">
 									片段 {index + 1} · {shot.name ?? instance}
 									{sources.length ? (
 										<select
@@ -499,7 +499,7 @@ export function TranscriptPanel({ reviewOnly = false }: { reviewOnly?: boolean }
 							{progress}
 						</p>
 					)}
-					<div className="space-y-2">
+					<div className="space-y-1">
 						{rows
 							.filter((r) =>
 								r.text.toLocaleLowerCase().includes(query.toLocaleLowerCase()),
@@ -507,7 +507,7 @@ export function TranscriptPanel({ reviewOnly = false }: { reviewOnly?: boolean }
 							.map((r) => (
 								<article
 									key={r.key}
-									className={`rounded-md border p-3 ${selected.includes(r.key) ? "border-primary bg-accent" : "border-transparent border-b-border"} ${ctx.time >= r.startMs && ctx.time < r.endMs ? "bg-primary/5" : ""}`}
+									className={`rounded-md border px-2 py-1.5 ${selected.includes(r.key) ? "border-primary bg-accent" : "border-transparent border-b-border"} ${ctx.time >= r.startMs && ctx.time < r.endMs ? "bg-primary/5" : ""}`}
 								>
 									<button
 										className="w-full rounded-sm text-left"
@@ -517,9 +517,9 @@ export function TranscriptPanel({ reviewOnly = false }: { reviewOnly?: boolean }
 										<span className="text-xs text-muted-foreground">
 											{timecode(r.startMs)} · {r.name}
 										</span>
-										<p className="mt-1 text-base leading-relaxed">{r.text}</p>
+										<p className="mt-0.5 text-base leading-relaxed">{r.text}</p>
 									</button>
-									<details className="mt-1 text-xs">
+									<details className="text-xs">
 										<summary className="py-1 text-muted-foreground">校对文字与时码</summary>
 										<p>
 											{timecode(r.sourceStartMs)} – {timecode(r.sourceEndMs)}
@@ -556,8 +556,8 @@ export function TranscriptPanel({ reviewOnly = false }: { reviewOnly?: boolean }
 					</div>
 				</>
 			)}
-			<details ref={reviewPanel} key={review ? review.plan.id : "no-review"} open={reviewOnly || Boolean(review)} className="mt-3 border-t border-border pt-3">
-				<summary className={reviewOnly ? "hidden" : "mb-3 text-sm font-medium"}>修改建议{review ? ` · ${review.plan.suggestions.length} 条` : ""}</summary>
+			<details ref={reviewPanel} key={review ? review.plan.id : "no-review"} open={reviewOnly || Boolean(review)} className="mt-2 border-t border-border pt-2">
+				<summary className={reviewOnly ? "hidden" : "mb-1.5 text-sm font-medium"}>修改建议{review ? ` · ${review.plan.suggestions.length} 条` : ""}</summary>
 				<button
 					className={button}
 					disabled={busy}
@@ -707,7 +707,7 @@ export function TranscriptPanel({ reviewOnly = false }: { reviewOnly?: boolean }
 					}}
 				>
 					<div className="flex h-[70vh] w-full max-w-4xl flex-col rounded-xl bg-card p-4">
-						<div className="mb-3 flex justify-between">
+						<div className="mb-1.5 flex justify-between">
 							<span>切点上下文试听</span>
 							<button autoFocus className={button} onClick={() => setPreview(null)}>
 								关闭
