@@ -30,3 +30,24 @@
 	.editor-inspector { width: 300px; }
 	.editor-inspector > * { padding: 12px; }
 }
+
+/* The timeline remains scrollable; small windows must leave room to read/edit. */
+.editor-workspace > :has(> [aria-label="轨道分组"]) {
+	height: 28% !important;
+	min-height: 200px !important;
+	border-top: 1px solid hsl(var(--border));
+	padding-top: 8px;
+}
+.editor-workspace [aria-label="轨道分组"] button {
+	min-height: 28px;
+	padding: 2px 8px;
+	border-radius: 4px;
+	color: hsl(var(--muted-foreground));
+}
+.editor-workspace [aria-label="轨道分组"] button:hover {
+	background: hsl(var(--muted));
+	color: hsl(var(--foreground));
+}
+.editor-workspace [aria-label="轨道分组"] button[aria-pressed="false"] {
+	background: hsl(var(--muted));
+}

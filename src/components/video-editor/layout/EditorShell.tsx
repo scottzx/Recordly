@@ -1,5 +1,4 @@
 import type { ComponentProps } from "react";
-import { EditorAnnouncementBanner } from "@/components/announcements/EditorAnnouncementBanner";
 import { Toaster } from "@/components/ui/sonner";
 import type { useI18n } from "@/contexts/I18nContext";
 import type { useEditorExportController } from "../export/useEditorExportController";
@@ -178,7 +177,6 @@ export function EditorShell(props: Props) {
 				revealExportedFile={dialogActions.revealExportedFile}
 				exportMessage={exportMessage}
 			/>
-			<EditorAnnouncementBanner />
 			{lifecycle.externalProjectPath && (
 				<div
 					role="alert"
@@ -191,19 +189,14 @@ export function EditorShell(props: Props) {
 					<button onClick={() => void saveActions.saveProject(true)}>另存当前编辑</button>
 				</div>
 			)}
-			<button
-				className="self-start px-5 py-1 text-xs text-blue-500"
-				onClick={() => {
-					ui.setIsPlaying(false);
-					ui.videoPlaybackRef.current?.pause();
-					void window.electronAPI.showMediaLibrary();
-				}}
-			>
-				← 素材库 / 继续录制
-			</button>
-			<div className="relative flex min-h-0 flex-1 flex-col gap-3 p-4">
+			<div className="editor-workspace relative flex min-h-0 flex-1 flex-col gap-3 p-4">
 				<div className="relative z-10 flex min-h-0 flex-1 gap-3">
 					<EditorSidebar
+						onReturnHome={() => {
+							ui.setIsPlaying(false);
+							ui.videoPlaybackRef.current?.pause();
+							void window.electronAPI.showMediaLibrary();
+						}}
 						t={t}
 						activeSection={ui.activeEffectSection}
 						setActiveSection={ui.setActiveEffectSection}

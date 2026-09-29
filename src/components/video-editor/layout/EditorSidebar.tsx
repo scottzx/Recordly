@@ -4,6 +4,7 @@ import { MediaLibraryPanel } from "../../media-library/MediaLibraryPanel";
 import { useCompositionContext } from "../composition/useCompositionEditing";
 import { CompositionSettingsPanel } from "../composition/CompositionSettingsPanel";
 import {
+	House,
 	Camera,
 	ClosedCaptioning,
 	Cursor,
@@ -25,13 +26,14 @@ import { SettingsPanel } from "../SettingsPanel";
 import type { EditorEffectSection } from "../types";
 
 type Props = {
+	onReturnHome: () => void;
 	t: ReturnType<typeof useI18n>["t"];
 	activeSection: EditorEffectSection;
 	setActiveSection: Dispatch<SetStateAction<EditorEffectSection>>;
 	settingsPanelProps: ComponentProps<typeof SettingsPanel>;
 };
 
-export function EditorSidebar({ t, activeSection, setActiveSection, settingsPanelProps }: Props) {
+export function EditorSidebar({ t, activeSection, setActiveSection, settingsPanelProps, onReturnHome }: Props) {
 	const composition = useCompositionContext();
 	const [collapsed, setCollapsed] = useState(false);
 	const sourceEditing = Boolean(composition?.project?.composition.sources);
@@ -65,6 +67,7 @@ export function EditorSidebar({ t, activeSection, setActiveSection, settingsPane
 	return (
 		<div className="flex min-h-0 flex-shrink-0 gap-3">
 			<aside className="flex w-[104px] min-h-0 flex-shrink-0 flex-col border-r border-border pr-2">
+				<button type="button" onClick={onReturnHome} title="返回首页，录制或打开工程" className="mb-2 flex min-h-9 flex-shrink-0 items-center gap-2 rounded-md px-2 text-xs font-medium text-muted-foreground hover:bg-muted hover:text-foreground"><House aria-hidden="true" className="h-[18px] w-[18px]" />首页</button>
 				<nav aria-label="编辑工具" className="min-h-0 flex-1 overflow-y-auto py-1">
 					{sections
 						.filter((section) => !sourceEditing || section.id !== "webcam")
