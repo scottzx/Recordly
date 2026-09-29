@@ -123,3 +123,11 @@
 	min-height: 32px;
 	line-height: 24px;
 }
+
+/* Thumbnail choices must stay large enough to distinguish and click in narrow panels. */
+.editor-inspector .grid[class~="grid-cols-8"] {
+	grid-template-columns: repeat(auto-fill, minmax(40px, 1fr));
+}
+.editor-inspector [role="button"] {
+	cursor: pointer;
+}
