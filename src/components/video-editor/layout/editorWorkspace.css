@@ -54,3 +54,72 @@
 
 .editor-workspace { color-scheme: light; }
 .dark .editor-workspace { color-scheme: dark; }
+
+/* Desktop editing type scale: readable labels without enlarging the video content. */
+.editor-inspector {
+	--editor-text-small: 12px;
+	--editor-text-control: 13px;
+	--editor-control-height: 32px;
+}
+.editor-inspector :is([class~="text-[8px]"], [class~="text-[9px]"], [class~="text-[10px]"]) {
+	font-size: var(--editor-text-small);
+	line-height: 1.5;
+}
+.editor-inspector [class~="text-[11px]"] {
+	font-size: var(--editor-text-control);
+	line-height: 1.5;
+}
+.editor-inspector :is([class~="text-muted-foreground/70"], [class~="text-muted-foreground/50"]) {
+	color: hsl(var(--muted-foreground));
+}
+.editor-inspector [class~="opacity-60"]:not(button) {
+	opacity: 1;
+	color: hsl(var(--muted-foreground));
+}
+.editor-inspector p[class~="uppercase"][class~="tracking-widest"] {
+	font-size: var(--editor-text-control);
+	letter-spacing: 0.025em;
+}
+.editor-workspace nav[aria-label="编辑工具"] button,
+.editor-workspace [aria-label="轨道分组"] button {
+	font-size: 13px;
+}
+.editor-inspector button:not([role="switch"]) {
+	min-height: var(--editor-control-height);
+	min-width: 32px;
+	font-size: var(--editor-text-control);
+}
+.editor-inspector button:not([role="switch"])[class~="text-[10px]"] {
+	padding-inline: 6px;
+}
+.editor-inspector :is(input:not([type="checkbox"]):not([type="range"]), select) {
+	min-height: var(--editor-control-height);
+	font-size: var(--editor-text-control);
+}
+.editor-inspector input[type="checkbox"] {
+	width: 16px;
+	height: 16px;
+	vertical-align: middle;
+}
+.editor-inspector [role="switch"] {
+	width: 44px;
+	height: 28px;
+	border-width: 4px;
+	transform: none;
+}
+.editor-inspector [role="switch"] > span {
+	width: 20px;
+	height: 20px;
+}
+.editor-inspector .grid[class~="h-8"] {
+	min-height: 40px;
+}
+.editor-inspector :is(input[aria-label="素材名称"], input[aria-label="素材标签"]) {
+	padding: 4px 6px;
+	border: 1px solid hsl(var(--border));
+	border-radius: 4px;
+}
+.editor-inspector summary {
+	min-height: 32px;
+	line-height: 24px;
+}
