@@ -131,8 +131,10 @@ export function CompositionSettingsPanel() {
 		<div className="composition-settings w-[280px] overflow-y-auto rounded-xl bg-card p-4 text-sm">
 			<fieldset>
 				<h2>镜头与素材</h2>
-				<SourceEditingPanel />
-				<OverlayTemplates />
+				<details key={controller.selected ?? "sources"} open={Boolean(controller.selected && !selectedBroll)} className="composition-section">
+					<summary>机位与声音</summary>
+					<SourceEditingPanel />
+				</details>
 				{selectedShot?.kind === "main" && (
 					<label>
 						<input
@@ -148,10 +150,13 @@ export function CompositionSettingsPanel() {
 				{!c.sources && !project.editor.webcam?.sourcePath && (
 					<p>当前工程未关联人像素材。请先在摄像头面板导入，才能使用人物布局。</p>
 				)}
+				<h3 className="composition-section-title">辅助画面</h3>
 				<button onClick={() => void addAsset().catch((e) => setError(String(e)))}>
 					导入辅助素材
 				</button>
 				<button onClick={addBroll}>添加 B-roll</button>
+				<h3 className="composition-section-title">文字与包装</h3>
+				<OverlayTemplates />
 				<label>
 					插入包装幕
 					<select
@@ -604,12 +609,14 @@ export function CompositionSettingsPanel() {
 						</button>
 					</>
 				)}
-				<h2>素材库</h2>
+				<details className="composition-section">
+				<summary>工程引用素材 · {c.assets.length}</summary>
 				{c.assets.map((a) => (
 					<p key={a.id}>
 						{a.kind} · {a.path.split(/[\\/]/).pop()}
 					</p>
 				))}
+			</details>
 			</fieldset>
 		</div>
 	);

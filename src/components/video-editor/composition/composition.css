@@ -39,3 +39,32 @@
 	width: 100%;
 	height: 100%;
 }
+
+.composition-settings > fieldset > h2:first-child {
+	margin-top: 0;
+	font-size: 16px;
+}
+.composition-section,
+.composition-section-title {
+	margin-top: 16px;
+	padding-top: 12px;
+	border-top: 1px solid hsl(var(--border));
+}
+.composition-section-title,
+.composition-settings summary {
+	font-size: 13px;
+	font-weight: 600;
+}
+.composition-settings summary {
+	padding: 6px 0;
+}
+.composition-settings details p {
+	margin: 8px 0;
+	font-size: 12px;
+	line-height: 1.6;
+	color: hsl(var(--muted-foreground));
+}
+.composition-settings button:disabled {
+	opacity: 0.45;
+	cursor: not-allowed;
+}
