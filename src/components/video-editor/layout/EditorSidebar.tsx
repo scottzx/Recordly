@@ -1,3 +1,4 @@
+import "./editorWorkspace.css";
 import { TranscriptPanel } from "../TranscriptPanel";
 import { MediaLibraryPanel } from "../../media-library/MediaLibraryPanel";
 import { useCompositionContext } from "../composition/useCompositionEditing";
@@ -63,7 +64,7 @@ export function EditorSidebar({ t, activeSection, setActiveSection, settingsPane
 	);
 	return (
 		<div className="flex min-h-0 flex-shrink-0 gap-3">
-			<aside className="flex w-24 min-h-0 flex-shrink-0 flex-col border-r border-border pr-2">
+			<aside className="flex w-[104px] min-h-0 flex-shrink-0 flex-col border-r border-border pr-2">
 				<nav aria-label="编辑工具" className="min-h-0 flex-1 overflow-y-auto py-1">
 					{sections
 						.filter((section) => !sourceEditing || section.id !== "webcam")
@@ -83,7 +84,7 @@ export function EditorSidebar({ t, activeSection, setActiveSection, settingsPane
 										className={`flex min-h-9 w-full items-center gap-2 rounded-md px-2 text-xs font-medium transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-primary ${isActive ? "bg-accent text-accent-foreground" : "text-muted-foreground hover:bg-muted hover:text-foreground"}`}
 									>
 										<section.icon aria-hidden="true" className="h-[18px] w-[18px] flex-shrink-0" weight={isActive ? "fill" : "regular"} />
-										<span>{section.shortLabel ?? section.label}</span>
+										<span className="whitespace-nowrap">{section.shortLabel ?? section.label}</span>
 									</button>
 								</div>
 							);
@@ -100,7 +101,7 @@ export function EditorSidebar({ t, activeSection, setActiveSection, settingsPane
 					{collapsed ? "展开面板" : "收起面板"}
 				</button>
 			</aside>
-			{collapsed ? null : activeSection === "transcript" || activeSection === "review" ? (
+			{!collapsed && <div className="editor-inspector">{activeSection === "transcript" || activeSection === "review" ? (
 				<TranscriptPanel reviewOnly={activeSection === "review"} />
 			) : activeSection === "library" ? (
 				<MediaLibraryPanel
@@ -133,7 +134,7 @@ export function EditorSidebar({ t, activeSection, setActiveSection, settingsPane
 				<ExtensionManager />
 			) : (
 				<SettingsPanel {...settingsPanelProps} />
-			)}
+			)}</div>}
 		</div>
 	);
 }
