@@ -51,3 +51,6 @@
 .editor-workspace [aria-label="轨道分组"] button[aria-pressed="false"] {
 	background: hsl(var(--muted));
 }
+
+.editor-workspace { color-scheme: light; }
+.dark .editor-workspace { color-scheme: dark; }
