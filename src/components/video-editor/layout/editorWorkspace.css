@@ -12,7 +12,7 @@
 	width: 100%;
 	height: 100%;
 	min-height: 0;
-	padding: 16px;
+	padding: 10px;
 	border-radius: 0;
 	background: transparent;
 	box-shadow: none;
@@ -28,7 +28,7 @@
 }
 @media (max-width: 1200px) {
 	.editor-inspector { width: 300px; }
-	.editor-inspector > * { padding: 12px; }
+	.editor-inspector > * { padding: 10px; }
 }
 
 /* The timeline remains scrollable; small windows must leave room to read/edit. */
@@ -59,7 +59,7 @@
 .editor-inspector {
 	--editor-text-small: 11px;
 	--editor-text-control: 12px;
-	--editor-control-height: 32px;
+	--editor-control-height: 28px;
 	font-size: var(--editor-text-control);
 	line-height: 1.5;
 }
@@ -97,7 +97,7 @@
 }
 .editor-inspector button:not([role="switch"]) {
 	min-height: var(--editor-control-height);
-	min-width: 32px;
+	min-width: 28px;
 	font-size: var(--editor-text-control);
 }
 .editor-inspector button:not([role="switch"])[class~="text-[10px]"] {
@@ -123,7 +123,7 @@
 	height: 20px;
 }
 .editor-inspector .grid[class~="h-8"] {
-	min-height: 40px;
+	min-height: 36px;
 }
 .editor-inspector :is(input[aria-label="素材名称"], input[aria-label="素材标签"]) {
 	padding: 4px 6px;
@@ -131,8 +131,9 @@
 	border-radius: 4px;
 }
 .editor-inspector summary {
-	min-height: 32px;
-	line-height: 24px;
+	min-height: 24px;
+	line-height: 20px;
+	padding-block: 2px;
 }
 
 /* Thumbnail choices must stay large enough to distinguish and click in narrow panels. */
@@ -142,3 +143,16 @@
 .editor-inspector [role="button"] {
 	cursor: pointer;
 }
+
+/* Dense desktop panels: one inset, 4px between related controls, 6–8px between groups. */
+.editor-inspector > .editor-settings-panel { padding: 0; }
+.editor-settings-panel > .custom-scrollbar { padding: 10px; }
+.editor-inspector [class~="gap-2"] { gap: 4px; }
+.editor-inspector :is([class~="gap-3"], [class~="gap-4"]) { gap: 8px; }
+.editor-inspector [class~="space-y-2"] > :not([hidden]) ~ :not([hidden]) { margin-top: 4px; }
+.editor-inspector [class~="space-y-3"] > :not([hidden]) ~ :not([hidden]) { margin-top: 6px; }
+.editor-inspector [class~="space-y-4"] > :not([hidden]) ~ :not([hidden]) { margin-top: 8px; }
+.editor-inspector [class~="mb-3"] { margin-bottom: 6px; }
+.editor-inspector [class~="p-3"] { padding: 8px; }
+.editor-inspector :is(button, input, select):is([class~="h-9"], [class~="h-10"]) { height: 32px; }
+.editor-inspector input:not([type="checkbox"]):not([type="range"]) { padding-block: 4px; }
