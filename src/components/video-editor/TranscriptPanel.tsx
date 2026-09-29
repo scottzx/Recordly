@@ -24,7 +24,7 @@ import { DEFAULT_AUTO_CAPTION_SETTINGS } from "./types";
 
 const timecode = (ms: number) =>
 	`${Math.floor(ms / 60000)}:${String(Math.floor(ms / 1000) % 60).padStart(2, "0")}`;
-const button = "rounded border px-2 py-1.5 text-xs disabled:opacity-40";
+const button = "min-h-8 rounded-md border border-border px-2.5 py-1.5 text-xs font-medium transition-colors hover:bg-muted focus-visible:outline-primary disabled:cursor-not-allowed disabled:opacity-40";
 export function TranscriptPanel({ reviewOnly = false }: { reviewOnly?: boolean }) {
 	const ctx = useCompositionContext()!;
 	const current = useRef(ctx);
@@ -317,16 +317,31 @@ export function TranscriptPanel({ reviewOnly = false }: { reviewOnly?: boolean }
 			className="flex w-[320px] min-h-0 flex-col overflow-y-auto rounded-xl bg-card p-3 text-sm"
 			aria-label={reviewOnly ? "修改审阅" : "文稿"}
 		>
-			<h2 className="mb-3 font-semibold">{reviewOnly ? "修改审阅" : "全文文稿"}</h2>
+			<h2 className="mb-3 text-base font-semibold">{reviewOnly ? "修改审阅" : "全文文稿"}</h2>
 			{!reviewOnly && (
 				<>
 					<input
 						aria-label="搜索文稿"
 						placeholder="搜索文稿"
+						type="search"
 						value={query}
 						onChange={(e) => setQuery(e.target.value)}
 						className="mb-2 rounded border bg-transparent p-2"
 					/>
+					{rows.length > 0 && (
+						<div className="sticky top-0 z-10 mb-3 flex items-center justify-between gap-2 border-b border-border bg-editor-panel py-2" aria-label="文稿选句操作">
+							<span className="text-xs text-muted-foreground" role="status">{selected.length ? `已选 ${selected.length} 句` : "点击选句 · Shift 连选"}</span>
+						<button
+							disabled={busy || !selected.length}
+							className={`${button} border-transparent bg-primary text-primary-foreground hover:bg-primary/90`}
+							onClick={() => void manual()}
+						>
+							从视频中删去
+						</button>
+						</div>
+					)}
+					<details key={state.documents.length ? "ready" : "empty"} open={!state.documents.length} className="mb-3 border-b border-border pb-3">
+						<summary className="py-1 text-xs font-medium text-muted-foreground">转写与字幕工具</summary>
 					{timeline(project.composition)
 						.filter((e) => e.shot.kind === "main")
 						.filter(
@@ -339,7 +354,7 @@ export function TranscriptPanel({ reviewOnly = false }: { reviewOnly?: boolean }
 											(e.shot.instanceId ?? e.shot.id),
 								) === i,
 						)
-						.map(({ shot }) => {
+						.map(({ shot }, index) => {
 							if (shot.kind !== "main") return null;
 							const instance = shot.instanceId ?? shot.id,
 								sources =
@@ -349,8 +364,8 @@ export function TranscriptPanel({ reviewOnly = false }: { reviewOnly?: boolean }
 											shot.sourceClips?.some((c) => c.sourceId === s.id),
 									) ?? [];
 							return (
-								<label key={instance} className="mb-2 text-xs">
-									{shot.name ?? instance}
+								<label key={instance} className="my-3 grid gap-1 text-xs">
+									片段 {index + 1} · {shot.name ?? instance}
 									{sources.length ? (
 										<select
 											aria-label={`${shot.name ?? instance} 讲解来源`}
@@ -365,7 +380,7 @@ export function TranscriptPanel({ reviewOnly = false }: { reviewOnly?: boolean }
 												] = e.target.value;
 												ctx.commitSnapshot(next);
 											}}
-											className="ml-2 max-w-full rounded border bg-card p-1"
+											className="w-full rounded-md border border-border bg-card p-2"
 										>
 											<option value="">选择讲解来源</option>
 											{sources.map((s) => (
@@ -413,13 +428,7 @@ export function TranscriptPanel({ reviewOnly = false }: { reviewOnly?: boolean }
 						>
 							检查长停顿
 						</button>
-						<button
-							disabled={busy || !selected.length}
-							className={button}
-							onClick={() => void manual()}
-						>
-							✂ 从视频中删去（{selected.length} 句）
-						</button>
+
 						<button
 							className={button}
 							disabled={!rows.length}
@@ -476,6 +485,7 @@ export function TranscriptPanel({ reviewOnly = false }: { reviewOnly?: boolean }
 							交给 AI 助手
 						</button>
 					</div>
+					</details>
 					{progress && (
 						<p role="status" className="mb-2 whitespace-pre-wrap text-xs opacity-70">
 							{progress}
@@ -489,19 +499,20 @@ export function TranscriptPanel({ reviewOnly = false }: { reviewOnly?: boolean }
 							.map((r) => (
 								<article
 									key={r.key}
-									className={`rounded border p-2 ${selected.includes(r.key) ? "border-blue-500" : ""} ${ctx.time >= r.startMs && ctx.time < r.endMs ? "bg-blue-500/10" : ""}`}
+									className={`rounded-md border p-3 ${selected.includes(r.key) ? "border-primary bg-accent" : "border-transparent border-b-border"} ${ctx.time >= r.startMs && ctx.time < r.endMs ? "bg-primary/5" : ""}`}
 								>
 									<button
-										className="w-full text-left"
+										className="w-full rounded-sm text-left"
+										aria-pressed={selected.includes(r.key)}
 										onClick={(e) => selectRow(r, e.shiftKey)}
 									>
-										<span className="text-xs opacity-60">
+										<span className="text-xs text-muted-foreground">
 											{timecode(r.startMs)} · {r.name}
 										</span>
-										<p>{r.text}</p>
+										<p className="mt-1 text-base leading-relaxed">{r.text}</p>
 									</button>
 									<details className="mt-1 text-xs">
-										<summary>校对文字／来源时码</summary>
+										<summary className="py-1 text-muted-foreground">校对文字与时码</summary>
 										<p>
 											{timecode(r.sourceStartMs)} – {timecode(r.sourceEndMs)}
 										</p>
@@ -537,7 +548,8 @@ export function TranscriptPanel({ reviewOnly = false }: { reviewOnly?: boolean }
 					</div>
 				</>
 			)}
-			<div className="mt-3 border-t pt-3">
+			<details key={review ? review.plan.id : "no-review"} open={reviewOnly || Boolean(review)} className="mt-3 border-t border-border pt-3">
+				<summary className={reviewOnly ? "hidden" : "mb-3 text-sm font-medium"}>修改建议{review ? ` · ${review.plan.suggestions.length} 条` : ""}</summary>
 				<button
 					className={button}
 					disabled={busy}
@@ -553,10 +565,10 @@ export function TranscriptPanel({ reviewOnly = false }: { reviewOnly?: boolean }
 						})
 					}
 				>
-					导入 Agent 建议
+					导入修改建议
 				</button>
 				<p className="my-2 text-xs opacity-60">
-					长停顿由本地音频检测生成。重复／重录建议需外部 Agent 提供，所有建议默认待处理。
+					先试听，再决定是否采纳。长停顿可在文稿工具中检查，AI 建议可从文件导入。
 				</p>
 				{review && (
 					<>
@@ -578,7 +590,7 @@ export function TranscriptPanel({ reviewOnly = false }: { reviewOnly?: boolean }
 						{review.plan.suggestions.map((s) => (
 							<article key={s.id} className="mb-2 rounded border p-2">
 								<p>{s.reason}</p>
-								<p className="text-xs opacity-60">
+								<p className="text-xs text-muted-foreground">
 									{s.kind} · {timecode(s.target.sourceStartMs)}–
 									{timecode(s.target.sourceEndMs)}
 								</p>
@@ -669,7 +681,7 @@ export function TranscriptPanel({ reviewOnly = false }: { reviewOnly?: boolean }
 							))}
 					</details>
 				))}
-			</div>
+			</details>
 			{error && (
 				<p role="alert" className="mt-2 whitespace-pre-wrap text-xs text-red-500">
 					{error}
