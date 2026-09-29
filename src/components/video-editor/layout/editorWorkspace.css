@@ -55,19 +55,30 @@
 .editor-workspace { color-scheme: light; }
 .dark .editor-workspace { color-scheme: dark; }
 
-/* Desktop editing type scale: readable labels without enlarging the video content. */
+/* Keep panel content subordinate to the 13px navigation; hit areas are independent. */
 .editor-inspector {
-	--editor-text-small: 12px;
-	--editor-text-control: 13px;
+	--editor-text-small: 11px;
+	--editor-text-control: 12px;
 	--editor-control-height: 32px;
+	font-size: var(--editor-text-control);
+	line-height: 1.5;
 }
 .editor-inspector :is([class~="text-[8px]"], [class~="text-[9px]"], [class~="text-[10px]"]) {
 	font-size: var(--editor-text-small);
 	line-height: 1.5;
 }
-.editor-inspector [class~="text-[11px]"] {
+.editor-inspector :is([class~="text-[11px]"], [class~="text-sm"]) {
 	font-size: var(--editor-text-control);
 	line-height: 1.5;
+}
+.editor-inspector [class~="text-xs"],
+.editor-inspector [class~="text-[11px]"][class~="text-muted-foreground"] {
+	font-size: var(--editor-text-small);
+	line-height: 1.5;
+}
+.editor-inspector [class~="text-base"] {
+	font-size: 13px;
+	line-height: 1.6;
 }
 .editor-inspector :is([class~="text-muted-foreground/70"], [class~="text-muted-foreground/50"]) {
 	color: hsl(var(--muted-foreground));
