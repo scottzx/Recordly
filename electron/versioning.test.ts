@@ -51,19 +51,30 @@ describe("independent fork versions", () => {
 		expect(fs.readFileSync(path.join(root, "release-notes.md"), "utf8")).toBe("stale");
 	});
 	it("previews releases against the fork with curated notes and rejects mismatched tags", () => {
+		const version = JSON.parse(fs.readFileSync("package.json", "utf8")).version;
+		const prerelease = version.includes("-");
 		const preview = JSON.parse(
 			execFileSync(
 				process.execPath,
 				[
 					"scripts/create-release.mjs",
 					"--tag",
-					`v${JSON.parse(fs.readFileSync("package.json", "utf8")).version}`,
+					`v${version}`,
+					...(prerelease ? ["--prerelease"] : []),
 					"--dry-run",
 				],
 				{ encoding: "utf8" },
 			),
 		);
 		expect(preview.repository).toBe("scottzx/Recordly");
+		expect(preview.prerelease).toBe(prerelease);
+		expect(() =>
+			execFileSync(
+				process.execPath,
+				["scripts/create-release.mjs", "--tag", `v${version}`, "--dry-run", ...(prerelease ? [] : ["--prerelease"])],
+				{ stdio: "pipe" },
+			),
+		).toThrow("Prerelease versions require --prerelease");
 		expect(preview.notes).toContain(
 			JSON.parse(fs.readFileSync("releases.json", "utf8"))[0].title,
 		);
