@@ -11,7 +11,9 @@ describe("local media path policy", () => {
 	let appPath: string;
 
 	beforeEach(async () => {
-		tempRoot = await fs.mkdtemp(path.join(os.tmpdir(), "recordly-media-policy-"));
+		tempRoot = await fs.realpath(
+			await fs.mkdtemp(path.join(os.tmpdir(), "recordly-media-policy-")),
+		);
 		appDataPath = path.join(tempRoot, "AppData");
 		userDataPath = path.join(tempRoot, "UserData");
 		tempPath = path.join(tempRoot, "Temp");
@@ -116,6 +118,42 @@ describe("local media path policy", () => {
 
 		await expect(resolveApprovedLocalMediaPath(textPath)).resolves.toBeNull();
 		expect(isAllowedMediaPath(textPath)).toBe(false);
+	});
+
+	it.each([
+		"system",
+		"mic",
+	])("resolves recorded %s M4A sidecars for probing and playback", async (track) => {
+		const audioPath = path.join(userDataPath, "recordings", `recording-1.${track}.m4a`);
+		await fs.mkdir(path.dirname(audioPath), { recursive: true });
+		await fs.writeFile(audioPath, "test-audio");
+		const resolvedAudioPath = await fs.realpath(audioPath);
+		const { resolveApprovedLocalMediaPath } = await import("./manager");
+		const { isAllowedMediaPath } = await import("../../mediaServer");
+		const { getMediaContentType } = await import("../../mediaTypes");
+
+		await expect(resolveApprovedLocalMediaPath(audioPath)).resolves.toBe(resolvedAudioPath);
+		expect(isAllowedMediaPath(audioPath)).toBe(true);
+		expect(getMediaContentType(audioPath)).toBe("audio/mp4");
+	});
+
+	it("requires approval for external M4A audio files", async () => {
+		const audioPath = path.join(tempRoot, "Downloads", "audio.m4a");
+		await fs.mkdir(path.dirname(audioPath), { recursive: true });
+		await fs.writeFile(audioPath, "test-audio");
+		const resolvedAudioPath = await fs.realpath(audioPath);
+		const { resolveApprovedLocalMediaPath, rememberApprovedLocalReadPath } = await import(
+			"./manager"
+		);
+		const { isAllowedMediaPath } = await import("../../mediaServer");
+
+		await expect(resolveApprovedLocalMediaPath(audioPath)).resolves.toBeNull();
+		expect(isAllowedMediaPath(audioPath)).toBe(false);
+
+		await rememberApprovedLocalReadPath(audioPath);
+
+		await expect(resolveApprovedLocalMediaPath(audioPath)).resolves.toBe(resolvedAudioPath);
+		expect(isAllowedMediaPath(audioPath)).toBe(true);
 	});
 
 	it("rejects symlinks under allowed prefixes that point outside the allowlist", async () => {

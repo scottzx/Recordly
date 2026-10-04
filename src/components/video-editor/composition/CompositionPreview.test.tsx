@@ -2,7 +2,10 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import type { VideoPlaybackRef } from "../VideoPlayback";
 import { CompositionPreview } from "./CompositionPreview";
 
-const harness = vi.hoisted(() => ({ effects: [] as (() => void | (() => void))[] }));
+const harness = vi.hoisted(() => ({
+	effects: [] as (() => void | (() => void))[],
+	render: vi.fn(),
+}));
 vi.mock("react", () => ({
 	forwardRef: (render: unknown) => render,
 	useRef: (current: unknown) => ({ current }),
@@ -15,7 +18,7 @@ vi.mock("react", () => ({
 vi.mock("./CompositionRenderer", () => ({
 	CompositionRenderer: class {
 		async initialize() {}
-		async render() {}
+		render = harness.render;
 		destroy() {}
 	},
 }));
@@ -33,11 +36,13 @@ const cleanups: (() => void)[] = [];
 afterEach(() => {
 	cleanups.splice(0).forEach((cleanup) => cleanup());
 	harness.effects = [];
+	vi.useRealTimers();
 	vi.unstubAllGlobals();
 	vi.restoreAllMocks();
 });
 
 async function setup() {
+	harness.render.mockReset().mockResolvedValue(undefined);
 	class Context extends EventTarget {
 		state = "suspended";
 		currentTime = 0;
@@ -72,19 +77,106 @@ async function setup() {
 	vi.stubGlobal("localStorage", { getItem: () => null, setItem: vi.fn() });
 	vi.spyOn(console, "info").mockImplementation(() => undefined);
 	const ref = { current: null as VideoPlaybackRef | null };
-	const onPlaying = vi.fn(), onError = vi.fn();
+	const onPlaying = vi.fn(), onError = vi.fn(), onTime = vi.fn();
 	// Exercise the real component's effects and imperative controls without a DOM renderer.
 	(CompositionPreview as unknown as Function)({
 		project: { composition: { shots: [] } }, time: 0, volume: 1,
-		onTime: vi.fn(), onDuration: vi.fn(), onReady: vi.fn(), onPlaying, onError,
+		onTime, onDuration: vi.fn(), onReady: vi.fn(), onPlaying, onError,
 	}, ref);
 	for (const effect of harness.effects) {
 		const cleanup = effect();
 		if (cleanup) cleanups.push(cleanup);
 	}
 	await flush();
-	return { context, audio, player: ref.current!, onPlaying, onError, windowTarget, documentTarget };
+	return { context, audio, player: ref.current!, onPlaying, onError, onTime, windowTarget, documentTarget };
 }
+
+describe("composition preview clock", () => {
+	async function setupClock() {
+		vi.useFakeTimers({ toFake: ["setInterval", "clearInterval"] });
+		let now = 0;
+		vi.spyOn(performance, "now").mockImplementation(() => now);
+		const result = await setup();
+		return {
+			...result,
+			async advance(ms: number) {
+				now += ms;
+				await vi.advanceTimersByTimeAsync(ms);
+			},
+			frame(at: number) {
+				now = at;
+				vi.mocked(requestAnimationFrame).mock.calls.at(-1)![0](at);
+			},
+		};
+	}
+
+	it("advances the playhead and paints when animation frames stop arriving", async () => {
+		const { player, onTime, advance } = await setupClock();
+		await player.play();
+		await advance(500);
+		expect(onTime).toHaveBeenLastCalledWith(0.5);
+		expect(harness.render).toHaveBeenLastCalledWith(500);
+		await advance(500);
+		expect(onTime).toHaveBeenLastCalledWith(1);
+		expect(harness.render).toHaveBeenLastCalledWith(1000);
+	});
+
+	it("leaves timely animation frames in control without duplicate timer renders", async () => {
+		const { player, onTime, frame, advance } = await setupClock();
+		await player.play();
+		frame(90);
+		await flush();
+		onTime.mockClear();
+		harness.render.mockClear();
+		await advance(10);
+		expect(onTime).not.toHaveBeenCalled();
+		expect(harness.render).not.toHaveBeenCalled();
+	});
+
+	it("keeps time advancing without queuing frames behind a pending render", async () => {
+		const { player, onTime, advance } = await setupClock();
+		let resolve!: () => void;
+		harness.render.mockClear().mockImplementation(() => new Promise<void>((done) => { resolve = done; }));
+		await player.play();
+		await advance(500);
+		await advance(500);
+		expect(onTime).toHaveBeenLastCalledWith(1);
+		expect(harness.render).toHaveBeenCalledOnce();
+		resolve();
+		await flush();
+		await advance(100);
+		expect(harness.render).toHaveBeenLastCalledWith(1100);
+		resolve();
+		await flush();
+	});
+
+	it("stops audio when synchronous clock updates fail and allows another play", async () => {
+		const { player, audio, onTime, onError, frame, advance } = await setupClock();
+		await player.play();
+		onTime.mockImplementationOnce(() => { throw new Error("update failed"); });
+		frame(100);
+		expect(player.isPlaying).toBe(false);
+		expect(audio.paused).toBe(true);
+		expect(onError).toHaveBeenCalledWith("Error: update failed");
+		await player.play();
+		await advance(500);
+		expect(onTime).toHaveBeenLastCalledWith(0.6);
+	});
+
+	it("stops at the end even without animation frames and clears timers on disposal", async () => {
+		const { player, audio, onTime, advance } = await setupClock();
+		await player.play();
+		await advance(60_100);
+		expect(onTime).toHaveBeenLastCalledWith(60);
+		expect(player.isPlaying).toBe(false);
+		expect(audio.paused).toBe(true);
+		onTime.mockClear();
+		await advance(500);
+		expect(onTime).not.toHaveBeenCalled();
+		cleanups.splice(0).forEach((cleanup) => cleanup());
+		expect(vi.getTimerCount()).toBe(0);
+	});
+});
 
 describe("composition audio interruptions", () => {
 	it("resumes an audio context interrupted during playback", async () => {

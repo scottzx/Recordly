@@ -302,39 +302,54 @@ export const CompositionPreview = forwardRef<VideoPlaybackRef, Props>((props, re
 	useEffect(() => {
 		let disposed = false,
 			frame = 0,
-			busy = false;
-		const tick = () => {
+			busy = false,
+			lastTick = performance.now();
+		const update = () => {
 			if (disposed) return;
-			if (playState.current && !latest.current.suspended) {
-				position.current =
-					anchor.current.time + (performance.now() - anchor.current.at) / 1000;
-				const end = durationMs(latest.current.project.composition) / 1000;
-				if (position.current >= end) {
-					position.current = end;
-					stop();
+			lastTick = performance.now();
+			try {
+				if (playState.current && !latest.current.suspended) {
+					position.current =
+						anchor.current.time + (performance.now() - anchor.current.at) / 1000;
+					const end = durationMs(latest.current.project.composition) / 1000;
+					if (position.current >= end) {
+						position.current = end;
+						stop();
+					}
+					latest.current.onTime(position.current);
+					syncAudio();
+					if (!busy) {
+						busy = true;
+						queue.current = queue.current
+							.catch(() => undefined)
+							.then(paint)
+							.catch((e) => {
+								stop();
+								latest.current.onError(String(e));
+							})
+							.finally(() => {
+								busy = false;
+							});
+					}
 				}
-				latest.current.onTime(position.current);
-				syncAudio();
-				if (!busy) {
-					busy = true;
-					queue.current = queue.current
-						.catch(() => undefined)
-						.then(paint)
-						.catch((e) => {
-							stop();
-							latest.current.onError(String(e));
-						})
-						.finally(() => {
-							busy = false;
-						});
-				}
+			} catch (e) {
+				stop();
+				latest.current.onError(String(e));
 			}
+		};
+		const tick = () => {
+			update();
 			frame = requestAnimationFrame(tick);
 		};
 		frame = requestAnimationFrame(tick);
+		// Window occlusion can stop animation frames while audio keeps playing.
+		const fallback = setInterval(() => {
+			if (performance.now() - lastTick >= 100) update();
+		}, 100);
 		return () => {
 			disposed = true;
 			cancelAnimationFrame(frame);
+			clearInterval(fallback);
 			stop();
 		};
 	}, [paint, stop, syncAudio]);
