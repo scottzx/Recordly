@@ -54,7 +54,7 @@ if [[ "$mode" == fast ]]; then
   output="$(mktemp -d "$PWD/release/macos-fast-${version}-${arch}-XXXXXX")"
   echo "Fast local build $version ($arch): no Developer ID signing, notarization, ZIP or DMG"
   CSC_IDENTITY_AUTO_DISCOVERY=false npm run build:mac -- dir "--$arch" --publish never \
-    "-c.electronDist=$runtime" -c.mac.identity=null -c.mac.notarize=false \
+    "-c.electronDist=$runtime" -c.mac.identity=null -c.mac.forceCodeSigning=false -c.mac.notarize=false \
     "-c.directories.output=$output"
   app="$output/mac-$arch/Recordly.app"
   if [[ "$arch" == x64 ]]; then app="$output/mac/Recordly.app"; fi

@@ -9,11 +9,17 @@ npm run package:mac
 
 默认生成本机测试用 `.app`，保存在独立的 `release/macos-fast-版本-架构-随机后缀/` 目录。保留编译、类型检查、本地临时签名和安装版 CLI 冒烟测试，跳过 Developer ID 联网签名、Apple 公证、ZIP 和 DMG 生成。此模式忽略 `MAC_SIGN_IDENTITY` 和 `NOTARY_PROFILE`，不适合对外分发，也不用于自动更新包验证。
 
+临时签名按当前构建的哈希识别应用。用快速测试版覆盖 `/Applications/Recordly.app`，会改变系统权限绑定的签名身份，可能出现辅助功能开关已开启、应用却检测不到授权的情况。需要保留升级权限时，请使用下方正式签名流程。
+
 正式打包必须显式传入参数，并在钥匙串中安装带私钥的 **Developer ID Application** 证书：
 
 ```bash
 npm run package:mac -- --release
 ```
+
+正式构建强制使用 Developer ID Application 签名；缺少证书时直接失败，不回退到临时签名。生成 DMG/ZIP 前，会校验应用签名、固定的应用标识 `dev.recordly.app` 和现有发布团队 `3HJ3R6SXAL`，拒绝临时签名、开发签名及其他团队的签名。这些检查也适用于 `npm run build:mac` 和 GitHub Release 构建。
+
+从当前临时签名版首次切回正式签名版，可能需要重新授权一次。之后持续使用同一发布团队和应用标识，系统可以继续识别升级后的 Recordly。Apple 公证改善安装验证，但不能代替稳定的应用签名身份。签名身份与权限的关系见 [Apple TN3127](https://developer.apple.com/documentation/technotes/tn3127-inside-code-signing-requirements)。
 
 脚本构建当前 Node.js 架构（Apple Silicon 通常为 arm64，Intel 为 x64），复用 `node_modules/electron/dist` 中同版本、同架构的运行时。原生组件构建仍可能需要下载依赖。不会发布 GitHub Release。
 

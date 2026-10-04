@@ -11,6 +11,7 @@
     "electron/native/bin/**"
   ],
   "productName": "Recordly",
+  "afterSign": "scripts/verify-macos-signing.mjs",
   "npmRebuild": true,
   "buildDependenciesFromSource": true,
   "compression": "normal",
@@ -55,6 +56,8 @@
   ],
 
   "mac": {
+    "forceCodeSigning": true,
+    "type": "distribution",
     "hardenedRuntime": true,
     "entitlements": "build/entitlements.mac.plist",
     "entitlementsInherit": "build/entitlements.mac.inherit.plist",
